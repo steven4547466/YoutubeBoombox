@@ -26,7 +26,7 @@ namespace YoutubeBoombox
 
             if (self) Networking.Broadcast((int)boombox.NetworkObjectId, NetworkingSignatures.BOOMBOX_READY_CLIENT_SIG);
 
-            YoutubeBoombox.Log($"READY CLIENT {trackers[boombox]}/{StartOfRound.Instance.connectedPlayersAmount + 1} | IS SELF?: {self}");
+            //YoutubeBoombox.Log($"READY CLIENT {trackers[boombox]}/{StartOfRound.Instance.connectedPlayersAmount + 1} | IS SELF?: {self}");
 
             if (trackers[boombox] >= StartOfRound.Instance.connectedPlayersAmount + 1)
             {

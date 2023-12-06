@@ -181,7 +181,7 @@ namespace YoutubeBoombox
 
         static IEnumerator LoadSongCoroutine(BoomboxItem boombox, string path)
         {
-            Singleton.Logger.LogInfo("Loading song");
+            //Singleton.Logger.LogInfo("Loading song");
             string url = string.Format("file://{0}", path);
             WWW www = new WWW(url);
             yield return www;
@@ -189,14 +189,14 @@ namespace YoutubeBoombox
             boombox.boomboxAudio.clip = www.GetAudioClip(false, false);
             boombox.boomboxAudio.pitch = 1f;
 
-            Singleton.Logger.LogInfo("BOOMBOX READY!");
+            //Singleton.Logger.LogInfo("BOOMBOX READY!");
 
             ClientTracker.AddReadyClient(boombox, true);
         }
 
         static async void Download(string url, BoomboxItem boombox, bool broadcast = false)
         {
-            Singleton.Logger.LogInfo($"Downloading song {url}");
+            //Singleton.Logger.LogInfo($"Downloading song {url}");
 
             string videoId;
 
@@ -214,7 +214,7 @@ namespace YoutubeBoombox
             }
             else
             {
-                Singleton.Logger.LogInfo("Couldn't resolve URL.");
+                Singleton.Logger.LogError("Couldn't resolve URL.");
                 return;
             }
 
@@ -232,8 +232,8 @@ namespace YoutubeBoombox
 
                 if (res.Success)
                 {
-                    Singleton.Logger.LogInfo(res.Data);
-                    Singleton.Logger.LogInfo(newPath);
+                    //Singleton.Logger.LogInfo(res.Data);
+                    //Singleton.Logger.LogInfo(newPath);
 
                     File.Move(res.Data, newPath);
 
@@ -244,10 +244,10 @@ namespace YoutubeBoombox
 
         public static void PlaySong(string url)
         {
-            Singleton.Logger.LogInfo($"Trying to play {url}");
+            //Singleton.Logger.LogInfo($"Trying to play {url}");
             if (BoomboxPatch.CurrentBoombox == null) return;
 
-            Singleton.Logger.LogInfo("Boombox found");
+            //Singleton.Logger.LogInfo("Boombox found");
 
             Download(url, BoomboxPatch.CurrentBoombox, true);
         }
@@ -325,7 +325,7 @@ namespace YoutubeBoombox
                     BoomboxPocketPatch.Debounce = false;
 
                     Networking.Broadcast($"{__instance.NetworkObjectId}|{pitchDown}", NetworkingSignatures.BOOMBOX_OFF_SIG);
-                    Singleton.Logger.LogInfo("Stopping boombox");
+                    //Singleton.Logger.LogInfo("Stopping boombox");
 
                     if (pitchDown)
                     {
@@ -354,13 +354,13 @@ namespace YoutubeBoombox
                 {
                     if (ShowingGUI)
                     {
-                        Singleton.Logger.LogInfo("Prevent dual open");
+                        //Singleton.Logger.LogInfo("Prevent dual open");
                         return false;
                     }
 
                     ClientTracker.Reset(__instance);
 
-                    Singleton.Logger.LogInfo("Opening boombox gui");
+                    //Singleton.Logger.LogInfo("Opening boombox gui");
 
                     CurrentBoombox = __instance;
 
@@ -373,7 +373,7 @@ namespace YoutubeBoombox
                 else if (__instance.isPlayingMusic)
                 {
                     Networking.Broadcast($"{__instance.NetworkObjectId}|{pitchDown}", NetworkingSignatures.BOOMBOX_OFF_SIG);
-                    Singleton.Logger.LogInfo("Stopping boombox");
+                    //Singleton.Logger.LogInfo("Stopping boombox");
 
                     if (pitchDown)
                     {
