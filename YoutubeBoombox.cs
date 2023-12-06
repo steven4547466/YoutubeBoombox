@@ -15,10 +15,13 @@ using GameNetcodeStuff;
 using Unity.Netcode;
 using System.Reflection.Emit;
 using UnityEngine.Pool;
+using UnityEngine.UIElements;
+using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 namespace YoutubeBoombox
 {
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.0.4")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.1.0")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
         private static Harmony Harmony { get; set; }
@@ -31,7 +34,7 @@ namespace YoutubeBoombox
 
         public static YoutubeDL YoutubeDL { get; private set; } = new YoutubeDL();
 
-        public static void Log(BepInEx.Logging.LogLevel level, object data)
+        public static void Log(object data, BepInEx.Logging.LogLevel level = BepInEx.Logging.LogLevel.Info)
         {
             Singleton.Logger.Log(level, data);
         }
@@ -61,6 +64,17 @@ namespace YoutubeBoombox
             Harmony.PatchAll();
 
             SetupNetworking();
+
+            CommandHandler.CommandHandler.RegisterCommand("bbv", new List<string>() { "boomboxvolume" }, (string[] args) =>
+            {
+                if (args.Length > 0 && float.TryParse(args[0], out float volume))
+                {
+                    if (StartOfRound.Instance.localPlayerController.currentlyHeldObjectServer is BoomboxItem boombox)
+                    {
+                        boombox.boomboxAudio.volume = volume;
+                    }
+                }
+            });
         }
 
         private void SetupNetworking()
@@ -184,10 +198,48 @@ namespace YoutubeBoombox
         {
             Singleton.Logger.LogInfo($"Downloading song {url}");
 
-            if (broadcast) Networking.Broadcast($"{url.Split(new[] { "?v=" }, StringSplitOptions.None)[1]}|{boombox.NetworkObjectId}", NetworkingSignatures.BOOMBOX_SIG);
-            var res = await YoutubeDL.RunAudioDownload(url, YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
+            string videoId;
 
-            boombox.StartCoroutine(LoadSongCoroutine(boombox, res.Data));
+            if (url.Contains("?v="))
+            {
+                videoId = url.Split(new[] { "?v=" }, StringSplitOptions.None)[1];
+            } 
+            else if (url.Contains("youtu.be"))
+            {
+                if (url.EndsWith("/")) url = url.Substring(0, url.Length - 1);
+
+                string[] split = url.Split('/');
+
+                videoId = split[split.Length - 1];
+            }
+            else
+            {
+                Singleton.Logger.LogInfo("Couldn't resolve URL.");
+                return;
+            }
+
+            if (broadcast) Networking.Broadcast($"{videoId}|{boombox.NetworkObjectId}", NetworkingSignatures.BOOMBOX_SIG);
+
+            string newPath = Path.Combine(DownloadsPath, $"{videoId}.mp3");
+
+            if (File.Exists(newPath))
+            {
+                boombox.StartCoroutine(LoadSongCoroutine(boombox, newPath));
+            }
+            else
+            {
+                var res = await YoutubeDL.RunAudioDownload(url, YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
+
+                if (res.Success)
+                {
+                    Singleton.Logger.LogInfo(res.Data);
+                    Singleton.Logger.LogInfo(newPath);
+
+                    File.Move(res.Data, newPath);
+
+                    boombox.StartCoroutine(LoadSongCoroutine(boombox, newPath));
+                }
+            }
         }
 
         public static void PlaySong(string url)
@@ -230,7 +282,7 @@ namespace YoutubeBoombox
                 List<CodeInstruction> newInstructions = new List<CodeInstruction>(instructions);
                 int index = newInstructions.FindLastIndex(i => i.opcode == OpCodes.Ldarg_0) - 1;
 
-                Label skipLabel = generator.DefineLabel();
+                System.Reflection.Emit.Label skipLabel = generator.DefineLabel();
 
                 newInstructions[index].labels.Add(skipLabel);
 
