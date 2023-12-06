@@ -12,6 +12,14 @@ How to use (make sure you're on 1.0.3+, earlier versions of the mod had issues):
 5. Wait a few seconds for everyone to download
 6. Profit.
 
+Features:
+- Play music from youtube and sync to all clients as long as everyone has the mod
+- Client side boombox volume control
+  - Hold a boombox and type `/bbv number` to change the volume of that boombox on your client
+    - Example: `/bbv 50` is half as loud
+- Supports basic `youtube.com/watch` links and shortened `youtu.be` links
+- Retains downloads until you restart the game, meaning playing the same songs in the same session only needs to download once, making repeats faster
+
 TODO:
 - Add a config option to keep the boombox on while in your inventory.
 - Better UI.
