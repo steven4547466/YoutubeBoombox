@@ -71,7 +71,7 @@ namespace YoutubeBoombox
                 {
                     if (StartOfRound.Instance.localPlayerController.currentlyHeldObjectServer is BoomboxItem boombox)
                     {
-                        boombox.boomboxAudio.volume = volume;
+                        boombox.boomboxAudio.volume = volume * 100;
                     }
                 }
             });
