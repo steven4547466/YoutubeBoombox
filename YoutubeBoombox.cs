@@ -56,12 +56,6 @@ namespace YoutubeBoombox
 
             YoutubeDL.OutputFolder = DownloadsPath;
 
-            //Logger.LogInfo("DOWNLOADING");
-
-            //var res = await YoutubeDL.RunAudioDownload("https://www.youtube.com/watch?v=9SbT3q1a6dQ", YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
-
-            //Logger.LogInfo(res.Data);
-
             Harmony = new Harmony($"steven4547466.YoutubeBoombox-{DateTime.Now.Ticks}");
 
             Harmony.PatchAll();
@@ -77,7 +71,7 @@ namespace YoutubeBoombox
 
         private void GetNetworkStringBroadcast(string data, string signature)
         {
-            Logger.LogInfo($"GOT STRING BROADCAST {data}|{signature}");
+            //Logger.LogInfo($"GOT STRING BROADCAST {data}|{signature}");
             if (signature == NetworkingSignatures.BOOMBOX_SIG)
             {
                 string[] split = data.Split('|');
@@ -154,7 +148,7 @@ namespace YoutubeBoombox
 
         private void GetNetworkIntBroadcast(int data, string signature)
         {
-            Logger.LogInfo($"GOT INT BROADCAST {data}|{signature}");
+            //Logger.LogInfo($"GOT INT BROADCAST {data}|{signature}");
             if (signature == NetworkingSignatures.BOOMBOX_READY_CLIENT_SIG)
             {
                 ulong netId = (ulong)data;
