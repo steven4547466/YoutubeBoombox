@@ -21,14 +21,14 @@ using UnityEngine.EventSystems;
 
 namespace YoutubeBoombox
 {
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.1.1")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.1.2")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
         private static Harmony Harmony { get; set; }
 
-        internal static string DirectoryPath { get; private set; } = Path.Combine(Directory.GetCurrentDirectory(), "Youtube-Boombox");
+        internal static string DirectoryPath { get; private set; }
 
-        internal static string DownloadsPath { get; private set; } = Path.Combine(DirectoryPath, "Downloads");
+        internal static string DownloadsPath { get; private set; }
 
         internal static YoutubeBoombox Singleton { get; private set; }
 
@@ -41,6 +41,15 @@ namespace YoutubeBoombox
 
         async void Awake()
         {
+            string oldDirectoryPath = Path.Combine(Directory.GetCurrentDirectory(), "Youtube-Boombox");
+
+            if (Directory.Exists(oldDirectoryPath))
+            {
+                Directory.Delete(oldDirectoryPath, true);
+            }
+
+            DirectoryPath = Path.Combine(Paths.PluginPath, "steven4547466-YoutubeBoombox", "data");
+            DownloadsPath = Path.Combine(DirectoryPath, "Downloads");
             Singleton = this;
 
             if (!Directory.Exists(DirectoryPath)) Directory.CreateDirectory(DirectoryPath);
