@@ -18,7 +18,7 @@ using UnityEngine.Pool;
 
 namespace YoutubeBoombox
 {
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.0.3")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.0.4")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
         private static Harmony Harmony { get; set; }
