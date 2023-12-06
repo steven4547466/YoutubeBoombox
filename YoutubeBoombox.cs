@@ -21,7 +21,7 @@ using UnityEngine.EventSystems;
 
 namespace YoutubeBoombox
 {
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.1.0")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.1.1")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
         private static Harmony Harmony { get; set; }
