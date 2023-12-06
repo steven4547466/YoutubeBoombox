@@ -21,7 +21,7 @@ using UnityEngine.EventSystems;
 
 namespace YoutubeBoombox
 {
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.1.2")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.1.3")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
         private static Harmony Harmony { get; set; }
@@ -80,7 +80,7 @@ namespace YoutubeBoombox
                 {
                     if (StartOfRound.Instance.localPlayerController.currentlyHeldObjectServer is BoomboxItem boombox)
                     {
-                        boombox.boomboxAudio.volume = volume * 100;
+                        boombox.boomboxAudio.volume = volume / 100;
                     }
                 }
             });
