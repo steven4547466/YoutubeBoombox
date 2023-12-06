@@ -18,7 +18,7 @@ using UnityEngine.Pool;
 
 namespace YoutubeBoombox
 {
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.0.0")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.0.3")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
         private static Harmony Harmony { get; set; }
@@ -247,6 +247,17 @@ namespace YoutubeBoombox
             }
         }
 
+        [HarmonyPatch(typeof(BoomboxItem), nameof(BoomboxItem.PocketItem))]
+        public class BoomboxPocketPatch
+        {
+            internal static bool Debounce = false;
+
+            public static void Prefix()
+            {
+                Debounce = true;
+            }
+        }
+
         [HarmonyPatch(typeof(BoomboxItem), nameof(BoomboxItem.StartMusic))]
         public class BoomboxPatch
         {
@@ -254,15 +265,41 @@ namespace YoutubeBoombox
             internal static YoutubeBoomboxGUI ShownGUI { get; set; }
             internal static BoomboxItem CurrentBoombox { get; set; }
 
-            public static bool Prefix(BoomboxItem __instance, bool pitchDown)
+            public static bool Prefix(BoomboxItem __instance, bool startMusic, bool pitchDown)
             {
-                Singleton.Logger.LogInfo($"isBeingUsed: {__instance.isBeingUsed}");
-                bool startMusic = !__instance.isBeingUsed;
-                if (startMusic)
-                {
-                    // Prevent it from stopping itself because it thinks its playing.
-                    __instance.isBeingUsed = false;
 
+                if (BoomboxPocketPatch.Debounce)
+                {
+                    BoomboxPocketPatch.Debounce = false;
+
+                    Networking.Broadcast($"{__instance.NetworkObjectId}|{pitchDown}", NetworkingSignatures.BOOMBOX_OFF_SIG);
+                    Singleton.Logger.LogInfo("Stopping boombox");
+
+                    if (pitchDown)
+                    {
+                        __instance.StartCoroutine(__instance.musicPitchDown());
+                    }
+                    else
+                    {
+                        __instance.boomboxAudio.Stop();
+                        __instance.boomboxAudio.PlayOneShot(__instance.stopAudios[UnityEngine.Random.Range(0, __instance.stopAudios.Length)]);
+                    }
+
+                    __instance.timesPlayedWithoutTurningOff = 0;
+
+                    __instance.isBeingUsed = false;
+                    __instance.isPlayingMusic = false;
+                    ClientTracker.Reset(__instance);
+
+                    CurrentBoombox = null;
+
+                    return false;
+                }
+
+                __instance.isBeingUsed = startMusic;
+
+                if (!startMusic)
+                {
                     if (ShowingGUI)
                     {
                         Singleton.Logger.LogInfo("Prevent dual open");
