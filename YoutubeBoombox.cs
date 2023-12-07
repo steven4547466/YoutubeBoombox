@@ -18,10 +18,15 @@ using UnityEngine.Pool;
 using UnityEngine.UIElements;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
+using System.ComponentModel;
+using Newtonsoft.Json.Linq;
+using BepInEx.Configuration;
+using YoutubeDLSharp.Metadata;
 
 namespace YoutubeBoombox
 {
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.1.3")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.2.0")]
+    [BepInDependency("LC_API")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
         private static Harmony Harmony { get; set; }
@@ -34,6 +39,16 @@ namespace YoutubeBoombox
 
         public static YoutubeDL YoutubeDL { get; private set; } = new YoutubeDL();
 
+        #region Config
+        internal static ConfigEntry<int> MaxCachedDownloads { get; private set; }
+
+        internal static ConfigEntry<bool> DeleteDownloadsOnRestart { get; private set; }
+
+        internal static ConfigEntry<float> MaxSongDuration { get; private set; }
+        #endregion
+
+        internal static List<string> PathsThisSession { get; private set; } = new List<string>();
+
         public static void Log(object data, BepInEx.Logging.LogLevel level = BepInEx.Logging.LogLevel.Info)
         {
             Singleton.Logger.Log(level, data);
@@ -41,6 +56,10 @@ namespace YoutubeBoombox
 
         async void Awake()
         {
+            MaxCachedDownloads = Config.Bind(new ConfigDefinition("General", "Max Cached Downloads"), 10, new ConfigDescription("The maximum number of downloaded songs that can be saved before deleting.", new ConfigNumberClamper(1, 100)));
+            DeleteDownloadsOnRestart = Config.Bind("General", "Delete Downloads On Restart", true, "Whether or not to delete downloads when your game starts again.");
+            MaxSongDuration = Config.Bind("General", "Max Song Duration", 600f, "Maximum song duration in seconds. Any video longer than this will not be downloaded.");
+
             string oldDirectoryPath = Path.Combine(Directory.GetCurrentDirectory(), "Youtube-Boombox");
 
             if (Directory.Exists(oldDirectoryPath))
@@ -55,9 +74,12 @@ namespace YoutubeBoombox
             if (!Directory.Exists(DirectoryPath)) Directory.CreateDirectory(DirectoryPath);
             if (!Directory.Exists(DownloadsPath)) Directory.CreateDirectory(DownloadsPath);
 
-            foreach (string file in Directory.GetFiles(DownloadsPath))
+            if (DeleteDownloadsOnRestart.Value)
             {
-                File.Delete(file);
+                foreach (string file in Directory.GetFiles(DownloadsPath))
+                {
+                    File.Delete(file);
+                }
             }
 
             if (!Directory.GetFiles(DirectoryPath).Any(file => file.Contains("yt-dl"))) await Utils.DownloadYtDlp(DirectoryPath);
@@ -74,7 +96,7 @@ namespace YoutubeBoombox
 
             SetupNetworking();
 
-            CommandHandler.CommandHandler.RegisterCommand("bbv", new List<string>() { "boomboxvolume" }, (string[] args) =>
+            LC_API.ClientAPI.CommandHandler.RegisterCommand("bbv", new List<string>() { "boomboxvolume" }, (string[] args) =>
             {
                 if (args.Length > 0 && float.TryParse(args[0], out float volume))
                 {
@@ -191,6 +213,17 @@ namespace YoutubeBoombox
         static IEnumerator LoadSongCoroutine(BoomboxItem boombox, string path)
         {
             //Singleton.Logger.LogInfo("Loading song");
+
+            if (PathsThisSession.Contains(path)) PathsThisSession.Remove(path);
+
+            PathsThisSession.Insert(0, path);
+
+            if (PathsThisSession.Count > MaxCachedDownloads.Value)
+            {
+                File.Delete(PathsThisSession[PathsThisSession.Count - 1]);
+                PathsThisSession.RemoveAt(PathsThisSession.Count - 1);
+            }
+
             string url = string.Format("file://{0}", path);
             WWW www = new WWW(url);
             yield return www;
@@ -237,6 +270,25 @@ namespace YoutubeBoombox
             }
             else
             {
+                var videoDataResult = await YoutubeDL.RunVideoDataFetch(url);
+
+                if (videoDataResult.Success)
+                {
+                    // Skip downloading videos that are too long
+                    if (videoDataResult.Data.Duration > MaxSongDuration.Value)
+                    {
+                        ClientTracker.AddReadyClient(boombox, true);
+
+                        return;
+                    }
+                } 
+                else
+                {
+                    ClientTracker.AddReadyClient(boombox, true);
+
+                    return;
+                }
+
                 var res = await YoutubeDL.RunAudioDownload(url, YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
 
                 if (res.Success)

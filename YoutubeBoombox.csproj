@@ -44,7 +44,8 @@
     <Reference Include="CommandHandler">
       <HintPath>..\CommandHandler\bin\Release\CommandHandler.dll</HintPath>
     </Reference>
-    <Reference Include="LC_API">
+    <Reference Include="LC_API, Version=2.1.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\AppData\Roaming\r2modmanPlus-local\LethalCompany\profiles\Tedgang\BepInEx\plugins\2018-LC_API\LC_API.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
@@ -126,6 +127,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ClientTracker.cs" />
+    <Compile Include="ConfigNumberClamper.cs" />
     <Compile Include="NetworkingSignatures.cs" />
     <Compile Include="YoutubeBoombox.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

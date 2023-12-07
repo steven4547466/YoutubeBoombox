@@ -25,8 +25,4 @@ TODO:
 - Better UI.
 - Allow the mod to be used in lobbies where not everyone has the mod by only waiting on the number of people with the mod.
   - Currently if you use the mod in a lobby and not everyone has it, it will wait forever.
-- Add a max duration config option that you'll download.
-  - To prevent someone from trying to download a 10 hour song to your computer.
-  - Will most likely default it to 10 minutes.
-- Add a max downloaded cache so it'll delete old downloads.
 - Playlist support.
