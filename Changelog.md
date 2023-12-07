@@ -10,4 +10,3 @@ This changelog only has changes from 1.2.0 onward.
 - [Addition] Added `MaxSongDuration` config option
   - Defaults to `600`. Value is in seconds
   - Songs longer than this value won't be downloaded and you will hear whatever was last played through the boombox instead, if anything
-- [Change] Changed to the LC API command handler now that it's merged
