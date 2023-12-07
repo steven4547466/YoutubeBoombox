@@ -1,6 +1,7 @@
 This changelog only has changes from 1.2.0 onward.
 
 # Version 1.2.0
+- [Addition] Support for playlists.
 - [Addition] Added `MaxCachedDownloads` config option
   - Defaults to `10`, when more songs are downloaded the oldest one is deleted
 - [Addition] Added `DeleteDownloadsOnRestart` config option

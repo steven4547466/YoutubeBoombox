@@ -22,9 +22,48 @@ using System.ComponentModel;
 using Newtonsoft.Json.Linq;
 using BepInEx.Configuration;
 using YoutubeDLSharp.Metadata;
+using System.Security.Policy;
+using Newtonsoft.Json;
 
 namespace YoutubeBoombox
 {
+    public class InfoCache : IProgress<string>
+    {
+        public class Info
+        {
+            public string id { get; set; }
+            public float duration { get; set; }
+        }
+
+        public string Id { get; set; }
+
+        public InfoCache(string id)
+        {
+            Id = id;
+
+            PlaylistCache.Add(id, new List<string>());
+        }
+
+        public static Dictionary<string, float> DurationCache = new Dictionary<string, float>();
+        public static Dictionary<string, List<string>> PlaylistCache = new Dictionary<string, List<string>>();
+
+        public void Report(string value)
+        {
+            try
+            {
+                Info json = JsonConvert.DeserializeObject<Info>(value);
+
+                if (!DurationCache.ContainsKey(json.id))
+                {
+                    DurationCache.Add(json.id, json.duration);
+                }
+
+                PlaylistCache[Id].Add(json.id);
+
+            } catch { }
+        }
+    }
+
     [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.2.0")]
     [BepInDependency("LC_API")]
     public class YoutubeBoombox : BaseUnityPlugin
@@ -120,10 +159,11 @@ namespace YoutubeBoombox
             if (signature == NetworkingSignatures.BOOMBOX_SIG)
             {
                 string[] split = data.Split('|');
-                string videoId = split[0];
+                string id = split[0];
+                string type = split[1];
                 ulong netId;
 
-                if (!ulong.TryParse(split[1], out netId))
+                if (!ulong.TryParse(split[2], out netId))
                 {
                     Logger.LogError("Unable to find boombox id in data");
 
@@ -141,7 +181,7 @@ namespace YoutubeBoombox
 
                 BoomboxPatch.CurrentBoombox = boombox;
 
-                Download($"https://youtube.com/watch?v={videoId}", boombox);
+                BoomboxController.Download(boombox, id, type);
             }
             else if (signature == NetworkingSignatures.BOOMBOX_OFF_SIG)
             {
@@ -187,7 +227,7 @@ namespace YoutubeBoombox
 
                 boombox.isBeingUsed = false;
                 boombox.isPlayingMusic = false;
-                ClientTracker.Reset(boombox);
+                BoomboxController.ResetReadyClients(boombox);
             }
         }
 
@@ -206,101 +246,39 @@ namespace YoutubeBoombox
                     return;
                 }
 
-                ClientTracker.AddReadyClient(boombox);
+                BoomboxController.AddReadyClient(boombox);
             }
         }
 
-        static IEnumerator LoadSongCoroutine(BoomboxItem boombox, string path)
+        public static (string, string) GetIdAndTypeFromUrl(string url)
         {
-            //Singleton.Logger.LogInfo("Loading song");
-
-            if (PathsThisSession.Contains(path)) PathsThisSession.Remove(path);
-
-            PathsThisSession.Insert(0, path);
-
-            if (PathsThisSession.Count > MaxCachedDownloads.Value)
-            {
-                File.Delete(PathsThisSession[PathsThisSession.Count - 1]);
-                PathsThisSession.RemoveAt(PathsThisSession.Count - 1);
-            }
-
-            string url = string.Format("file://{0}", path);
-            WWW www = new WWW(url);
-            yield return www;
-
-            boombox.boomboxAudio.clip = www.GetAudioClip(false, false);
-            boombox.boomboxAudio.pitch = 1f;
-
-            //Singleton.Logger.LogInfo("BOOMBOX READY!");
-
-            ClientTracker.AddReadyClient(boombox, true);
-        }
-
-        static async void Download(string url, BoomboxItem boombox, bool broadcast = false)
-        {
-            //Singleton.Logger.LogInfo($"Downloading song {url}");
-
-            string videoId;
+            string id;
+            string type = "video";
 
             if (url.Contains("?v="))
             {
-                videoId = url.Split(new[] { "?v=" }, StringSplitOptions.None)[1];
-            } 
+                id = url.Split(new[] { "?v=" }, StringSplitOptions.None)[1];
+            }
             else if (url.Contains("youtu.be"))
             {
                 if (url.EndsWith("/")) url = url.Substring(0, url.Length - 1);
 
                 string[] split = url.Split('/');
 
-                videoId = split[split.Length - 1];
+                id = split[split.Length - 1];
+            } 
+            else if (url.Contains("?list="))
+            {
+                id = url.Split(new[] { "?list=" }, StringSplitOptions.None)[1].Split('&')[0];
+                type = "playlist";
             }
             else
             {
                 Singleton.Logger.LogError("Couldn't resolve URL.");
-                return;
+                return (null, null);
             }
 
-            if (broadcast) Networking.Broadcast($"{videoId}|{boombox.NetworkObjectId}", NetworkingSignatures.BOOMBOX_SIG);
-
-            string newPath = Path.Combine(DownloadsPath, $"{videoId}.mp3");
-
-            if (File.Exists(newPath))
-            {
-                boombox.StartCoroutine(LoadSongCoroutine(boombox, newPath));
-            }
-            else
-            {
-                var videoDataResult = await YoutubeDL.RunVideoDataFetch(url);
-
-                if (videoDataResult.Success)
-                {
-                    // Skip downloading videos that are too long
-                    if (videoDataResult.Data.Duration > MaxSongDuration.Value)
-                    {
-                        ClientTracker.AddReadyClient(boombox, true);
-
-                        return;
-                    }
-                } 
-                else
-                {
-                    ClientTracker.AddReadyClient(boombox, true);
-
-                    return;
-                }
-
-                var res = await YoutubeDL.RunAudioDownload(url, YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
-
-                if (res.Success)
-                {
-                    //Singleton.Logger.LogInfo(res.Data);
-                    //Singleton.Logger.LogInfo(newPath);
-
-                    File.Move(res.Data, newPath);
-
-                    boombox.StartCoroutine(LoadSongCoroutine(boombox, newPath));
-                }
-            }
+            return (id, type);
         }
 
         public static void PlaySong(string url)
@@ -310,7 +288,9 @@ namespace YoutubeBoombox
 
             //Singleton.Logger.LogInfo("Boombox found");
 
-            Download(url, BoomboxPatch.CurrentBoombox, true);
+            (string id, string type) = GetIdAndTypeFromUrl(url);
+
+            BoomboxController.Download(BoomboxPatch.CurrentBoombox, id, type, true);
         }
 
         [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.DiscardItemOnClient))]
@@ -402,7 +382,7 @@ namespace YoutubeBoombox
 
                     __instance.isBeingUsed = false;
                     __instance.isPlayingMusic = false;
-                    ClientTracker.Reset(__instance);
+                    BoomboxController.ResetReadyClients(__instance);
 
                     CurrentBoombox = null;
 
@@ -419,7 +399,7 @@ namespace YoutubeBoombox
                         return false;
                     }
 
-                    ClientTracker.Reset(__instance);
+                    BoomboxController.ResetReadyClients(__instance);
 
                     //Singleton.Logger.LogInfo("Opening boombox gui");
 
@@ -450,7 +430,7 @@ namespace YoutubeBoombox
 
                     __instance.isBeingUsed = false;
                     __instance.isPlayingMusic = false;
-                    ClientTracker.Reset(__instance);
+                    BoomboxController.ResetReadyClients(__instance);
 
                     CurrentBoombox = null;
                 }

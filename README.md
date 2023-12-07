@@ -4,7 +4,7 @@ https://github.com/steven4547466/YoutubeBoombox/assets/23726534/4b8d73c1-73ae-4d
 
 I am sorry about the compression.
 
-How to use (make sure you're on 1.0.3+, earlier versions of the mod had issues):
+How to use:
 1. Obtain boombox
 2. Left click while holding boombox
 3. Paste URL
@@ -18,6 +18,7 @@ Features:
   - Hold a boombox and type `/bbv number` to change the volume of that boombox on your client
     - Example: `/bbv 50` is half as loud
 - Supports basic `youtube.com/watch` links and shortened `youtu.be` links
+- Supports playlist links like `youtube.com/playlist?list=LIST_ID` ensure there's no `v=` in there, otherwise it'll play just the single video
 - Retains downloads until you restart the game, meaning playing the same songs in the same session only needs to download once, making repeats faster
 
 TODO:

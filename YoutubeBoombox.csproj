@@ -126,7 +126,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ClientTracker.cs" />
+    <Compile Include="BoomboxController.cs" />
     <Compile Include="ConfigNumberClamper.cs" />
     <Compile Include="NetworkingSignatures.cs" />
     <Compile Include="YoutubeBoombox.cs" />
