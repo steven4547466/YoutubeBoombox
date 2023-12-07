@@ -84,6 +84,8 @@ namespace YoutubeBoombox
         internal static ConfigEntry<bool> DeleteDownloadsOnRestart { get; private set; }
 
         internal static ConfigEntry<float> MaxSongDuration { get; private set; }
+
+        internal static ConfigEntry<bool> EnableDebugLogs { get; private set; }
         #endregion
 
         internal static List<string> PathsThisSession { get; private set; } = new List<string>();
@@ -93,11 +95,21 @@ namespace YoutubeBoombox
             Singleton.Logger.Log(level, data);
         }
 
+        public static void DebugLog(object data, bool shouldLog = true)
+        {
+            if (shouldLog)
+            {
+                Singleton.Logger.LogDebug(data);
+            }
+        }
+
         async void Awake()
         {
             MaxCachedDownloads = Config.Bind(new ConfigDefinition("General", "Max Cached Downloads"), 10, new ConfigDescription("The maximum number of downloaded songs that can be saved before deleting.", new ConfigNumberClamper(1, 100)));
             DeleteDownloadsOnRestart = Config.Bind("General", "Delete Downloads On Restart", true, "Whether or not to delete downloads when your game starts again.");
             MaxSongDuration = Config.Bind("General", "Max Song Duration", 600f, "Maximum song duration in seconds. Any video longer than this will not be downloaded.");
+
+            EnableDebugLogs = Config.Bind("Debugging", "Enable Debug Logs", false, "Whether or not to enable debug logs.");
 
             string oldDirectoryPath = Path.Combine(Directory.GetCurrentDirectory(), "Youtube-Boombox");
 
@@ -139,9 +151,30 @@ namespace YoutubeBoombox
             {
                 if (args.Length > 0 && float.TryParse(args[0], out float volume))
                 {
-                    if (StartOfRound.Instance.localPlayerController.currentlyHeldObjectServer is BoomboxItem boombox)
+                    PlayerControllerB localController = StartOfRound.Instance.localPlayerController;
+                    if (localController.currentlyHeldObjectServer is BoomboxItem boombox)
                     {
                         boombox.boomboxAudio.volume = volume / 100;
+                    }
+                    else
+                    {
+                        BoomboxItem closestBoombox = null;
+                        float distanceSqr = float.MaxValue;
+
+                        foreach (BoomboxItem boomboxItem in FindObjectsOfType<BoomboxItem>())
+                        {
+                            float dist = (boomboxItem.transform.position - localController.transform.position).sqrMagnitude;
+                            if (dist < distanceSqr)
+                            {
+                                closestBoombox = boomboxItem;
+                                distanceSqr = dist;
+                            }
+                        }
+
+                        if (distanceSqr <= 255)
+                        {
+                            closestBoombox.boomboxAudio.volume = volume / 100;
+                        }
                     }
                 }
             });
@@ -155,7 +188,7 @@ namespace YoutubeBoombox
 
         private void GetNetworkStringBroadcast(string data, string signature)
         {
-            //Logger.LogInfo($"GOT STRING BROADCAST {data}|{signature}");
+            DebugLog($"GOT STRING BROADCAST {data}|{signature}", EnableDebugLogs.Value);
             if (signature == NetworkingSignatures.BOOMBOX_SIG)
             {
                 string[] split = data.Split('|');
@@ -233,7 +266,7 @@ namespace YoutubeBoombox
 
         private void GetNetworkIntBroadcast(int data, string signature)
         {
-            //Logger.LogInfo($"GOT INT BROADCAST {data}|{signature}");
+            DebugLog($"GOT INT BROADCAST {data}|{signature}", EnableDebugLogs.Value);
             if (signature == NetworkingSignatures.BOOMBOX_READY_CLIENT_SIG)
             {
                 ulong netId = (ulong)data;
@@ -283,10 +316,10 @@ namespace YoutubeBoombox
 
         public static void PlaySong(string url)
         {
-            //Singleton.Logger.LogInfo($"Trying to play {url}");
+            DebugLog($"Trying to play {url}", EnableDebugLogs.Value);
             if (BoomboxPatch.CurrentBoombox == null) return;
 
-            //Singleton.Logger.LogInfo("Boombox found");
+            DebugLog("Boombox found", EnableDebugLogs.Value);
 
             (string id, string type) = GetIdAndTypeFromUrl(url);
 
@@ -366,7 +399,7 @@ namespace YoutubeBoombox
                     BoomboxPocketPatch.Debounce = false;
 
                     Networking.Broadcast($"{__instance.NetworkObjectId}|{pitchDown}", NetworkingSignatures.BOOMBOX_OFF_SIG);
-                    //Singleton.Logger.LogInfo("Stopping boombox");
+                    DebugLog("Stopping boombox", EnableDebugLogs.Value);
 
                     if (pitchDown)
                     {
@@ -395,13 +428,13 @@ namespace YoutubeBoombox
                 {
                     if (ShowingGUI)
                     {
-                        //Singleton.Logger.LogInfo("Prevent dual open");
+                        DebugLog("Prevent dual open", EnableDebugLogs.Value);
                         return false;
                     }
 
                     BoomboxController.ResetReadyClients(__instance);
 
-                    //Singleton.Logger.LogInfo("Opening boombox gui");
+                    DebugLog("Opening boombox gui", EnableDebugLogs.Value);
 
                     CurrentBoombox = __instance;
 
@@ -414,7 +447,7 @@ namespace YoutubeBoombox
                 else if (__instance.isPlayingMusic)
                 {
                     Networking.Broadcast($"{__instance.NetworkObjectId}|{pitchDown}", NetworkingSignatures.BOOMBOX_OFF_SIG);
-                    //Singleton.Logger.LogInfo("Stopping boombox");
+                    DebugLog("Stopping boombox", EnableDebugLogs.Value);
 
                     if (pitchDown)
                     {

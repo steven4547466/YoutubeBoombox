@@ -135,26 +135,31 @@ namespace YoutubeBoombox
 
             if (self) Networking.Broadcast((int)Boombox.NetworkObjectId, NetworkingSignatures.BOOMBOX_READY_CLIENT_SIG);
 
-            //YoutubeBoombox.Log($"READY CLIENT {trackers[boombox]}/{StartOfRound.Instance.connectedPlayersAmount + 1} | IS SELF?: {self}");
+            DebugLog($"READY CLIENT {ReadyClients}/{StartOfRound.Instance.connectedPlayersAmount + 1} | IS SELF?: {self}", EnableDebugLogs.Value);
 
             if (ReadyClients >= StartOfRound.Instance.connectedPlayersAmount + 1)
             {
                 ReadyClients = 0;
+                Boombox.boomboxAudio.loop = true;
                 Boombox.isBeingUsed = true;
                 Boombox.isPlayingMusic = true;
                 Boombox.boomboxAudio.Play();
 
                 if (IsPlaylist)
                 {
-                    Boombox.StartCoroutine(PlaylistCoroutine(Boombox.boomboxAudio.clip.length));
+                    Boombox.boomboxAudio.loop = false;
+                    Boombox.StartCoroutine(PlaylistCoroutine());
                 }
             }
         }
 
-        public IEnumerator PlaylistCoroutine(float duration)
+        public IEnumerator PlaylistCoroutine()
         {
             PrepareNextSongInPlaylist();
-            yield return new WaitForSeconds(duration);
+            while (Boombox.boomboxAudio.isPlaying)
+            {
+                yield return new WaitForSeconds(1);
+            }
             IncrementPlaylistIndex();
         }
 
@@ -177,7 +182,7 @@ namespace YoutubeBoombox
             Boombox.boomboxAudio.clip = www.GetAudioClip(false, false);
             Boombox.boomboxAudio.pitch = 1f;
 
-            //Singleton.Logger.LogInfo("BOOMBOX READY!");
+            YoutubeBoombox.DebugLog("BOOMBOX READY!", EnableDebugLogs.Value);
 
             AddReadyClient(true);
         }
@@ -253,8 +258,8 @@ namespace YoutubeBoombox
 
             if (res.Success)
             {
-                //Singleton.Logger.LogInfo(res.Data);
-                //Singleton.Logger.LogInfo(newPath);
+                YoutubeBoombox.DebugLog(res.Data, EnableDebugLogs.Value);
+                YoutubeBoombox.DebugLog(newPath, EnableDebugLogs.Value);
 
                 File.Move(res.Data, newPath);
 
