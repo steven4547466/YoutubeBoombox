@@ -29,3 +29,4 @@ TODO:
   - To prevent someone from trying to download a 10 hour song to your computer.
   - Will most likely default it to 10 minutes.
 - Add a max downloaded cache so it'll delete old downloads.
+- Playlist support.
