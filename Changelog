@@ -1,0 +1,11 @@
+This changelog only has changes from 1.2.0 onward.
+
+# Version 1.2.0
+- [Addition] Added `MaxCachedDownloads` config option
+  - Defaults to `10`, when more songs are downloaded the oldest one is deleted
+- [Addition] Added `DeleteDownloadsOnRestart` config option
+  - Defaults to `true`
+- [Addition] Added `MaxSongDuration` config option
+  - Defaults to `600`. Value is in seconds
+  - Songs longer than this value won't be downloaded and you will hear whatever was last played through the boombox instead, if anything
+- [Change] Changed to the LC API command handler now that it's merged
