@@ -147,7 +147,7 @@ namespace YoutubeBoombox
 
             SetupNetworking();
 
-            LC_API.ClientAPI.CommandHandler.RegisterCommand("bbv", new List<string>() { "boomboxvolume" }, (string[] args) =>
+            CommandHandler.CommandHandler.RegisterCommand("bbv", new List<string>() { "boomboxvolume" }, (string[] args) =>
             {
                 if (args.Length > 0 && float.TryParse(args[0], out float volume))
                 {
