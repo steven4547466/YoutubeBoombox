@@ -64,7 +64,7 @@ namespace YoutubeBoombox
         }
     }
 
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.2.0")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.2.2")]
     [BepInDependency("LC_API")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
@@ -99,12 +99,14 @@ namespace YoutubeBoombox
         {
             if (shouldLog)
             {
-                Singleton.Logger.LogDebug(data);
+                Singleton.Logger.LogInfo(data);
             }
         }
 
         async void Awake()
         {
+            Singleton = this;
+
             MaxCachedDownloads = Config.Bind(new ConfigDefinition("General", "Max Cached Downloads"), 10, new ConfigDescription("The maximum number of downloaded songs that can be saved before deleting.", new ConfigNumberClamper(1, 100)));
             DeleteDownloadsOnRestart = Config.Bind("General", "Delete Downloads On Restart", true, "Whether or not to delete downloads when your game starts again.");
             MaxSongDuration = Config.Bind("General", "Max Song Duration", 600f, "Maximum song duration in seconds. Any video longer than this will not be downloaded.");
@@ -120,7 +122,6 @@ namespace YoutubeBoombox
 
             DirectoryPath = Path.Combine(Paths.PluginPath, "steven4547466-YoutubeBoombox", "data");
             DownloadsPath = Path.Combine(DirectoryPath, "Downloads");
-            Singleton = this;
 
             if (!Directory.Exists(DirectoryPath)) Directory.CreateDirectory(DirectoryPath);
             if (!Directory.Exists(DownloadsPath)) Directory.CreateDirectory(DownloadsPath);
@@ -178,6 +179,22 @@ namespace YoutubeBoombox
                     }
                 }
             });
+
+            //CommandHandler.CommandHandler.RegisterCommand("spawnbox", (string[] args) =>
+            //{
+            //    NetworkManager manager = FindObjectOfType<NetworkManager>();
+            //    if (manager != null)
+            //    {
+            //        foreach (NetworkPrefab prefab in manager.NetworkConfig.Prefabs.Prefabs)
+            //        {
+            //            if (prefab.Prefab.TryGetComponent(out BoomboxItem boombox))
+            //            {
+            //                BoomboxItem spawnedBox = Instantiate(boombox, StartOfRound.Instance.localPlayerController.transform.position, default);
+            //                spawnedBox.GetComponent<NetworkObject>().Spawn();
+            //            }
+            //        }
+            //    } 
+            //});
         }
 
         private void SetupNetworking()
