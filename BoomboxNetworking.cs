@@ -1,4 +1,5 @@
 ﻿using LC_API.ServerAPI;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -32,7 +33,7 @@ namespace YoutubeBoombox
             Boombox = GetComponent<BoomboxItem>();
         }
 
-        [ServerRpc]
+        [ServerRpc(RequireOwnership = false)]
         public void DownloadServerRpc(string id, bool isPlaylist)
         {
             DebugLog($"Download server rpc received, sending to all", EnableDebugLogs.Value);
@@ -75,7 +76,7 @@ namespace YoutubeBoombox
         [ClientRpc]
         public void AddReadyClientRpc(ulong readyId)
         {
-            DebugLog($"READY CLIENT CALLED {ReadyClients.Contains(readyId)}", EnableDebugLogs.Value);
+            DebugLog($"READY CLIENT CALLED already ready?: {ReadyClients.Contains(readyId)}", EnableDebugLogs.Value);
             if (ReadyClients.Contains(readyId)) return;
 
             ReadyClients.Add(readyId);
@@ -175,11 +176,10 @@ namespace YoutubeBoombox
                 {
                     string id = videoIds[PlaylistCurrentIndex];
                     string url = $"https://youtube.com/watch?v={id}";
-                    string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
 
                     DebugLog($"Downloading next playlist song.", EnableDebugLogs.Value);
 
-                    DownloadSong(id, url, newPath);
+                    DownloadSong(id, url);
                 }
                 else
                 {
@@ -203,15 +203,24 @@ namespace YoutubeBoombox
             IncrementPlaylistIndex();
         }
 
-        public void DownloadCurrentVideo(string newPath)
+        public void DownloadCurrentVideo()
         {
             DebugLog($"Downloading {CurrentUrl} ({CurrentId})", EnableDebugLogs.Value);
-            DownloadSong(CurrentId, CurrentUrl, newPath);
+            DownloadSong(CurrentId, CurrentUrl);
         }
 
-        public async void DownloadSong(string id, string url, string newPath)
+        public async void DownloadSong(string id, string url)
         {
             DebugLog($"Downloading song {url} ({id})", EnableDebugLogs.Value);
+
+            string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
+
+            if (id == null || url == null || newPath == null)
+            {
+                DebugLog($"Something is null. {id == null} {url == null} {newPath == null}", EnableDebugLogs.Value);
+
+                return;
+            }
 
             if (File.Exists(newPath))
             {
@@ -233,38 +242,51 @@ namespace YoutubeBoombox
             }
             else
             {
-                DebugLog($"Downloading song duration data.", EnableDebugLogs.Value);
-                var videoDataResult = await YoutubeBoombox.YoutubeDL.RunVideoDataFetch(url);
-
-                if (videoDataResult.Success && videoDataResult.Data.Duration != null)
+                try
                 {
-                    InfoCache.DurationCache.Add(id, (float)videoDataResult.Data.Duration);
-                    // Skip downloading videos that are too long
-                    if (videoDataResult.Data.Duration > MaxSongDuration.Value)
+                    DebugLog($"Downloading song duration data.", EnableDebugLogs.Value);
+                    var videoDataResult = await YoutubeBoombox.YoutubeDL.RunVideoDataFetch(url);
+                    DebugLog($"Downloaded song duration data.", EnableDebugLogs.Value);
+
+                    if (videoDataResult.Success && videoDataResult.Data.Duration != null)
                     {
-                        DebugLog($"Song too long. Preventing download.", EnableDebugLogs.Value);
+                        InfoCache.DurationCache.Add(id, (float)videoDataResult.Data.Duration);
+                        // Skip downloading videos that are too long
+                        if (videoDataResult.Data.Duration > MaxSongDuration.Value)
+                        {
+                            DebugLog($"Song too long. Preventing download.", EnableDebugLogs.Value);
+                            IAmReadyServerRpc();
+
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        DebugLog($"Couldn't get song data, skipping.", EnableDebugLogs.Value);
                         IAmReadyServerRpc();
 
                         return;
                     }
-                }
-                else
+                } 
+                catch(Exception e)
                 {
-                    DebugLog($"Couldn't get song data, skipping.", EnableDebugLogs.Value);
+                    DebugLog($"Error while downloading song data.", EnableDebugLogs.Value);
+                    DebugLog(e, EnableDebugLogs.Value);
                     IAmReadyServerRpc();
 
                     return;
                 }
             }
 
+            DebugLog($"Trying to download {url}.", EnableDebugLogs.Value);
+
             var res = await YoutubeBoombox.YoutubeDL.RunAudioDownload(url, YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
+
+            DebugLog($"Downloaded.", EnableDebugLogs.Value);
 
             if (res.Success)
             {
                 DebugLog($"Song {id} downloaded successfully.", EnableDebugLogs.Value);
-
-                File.Move(res.Data, newPath);
-
                 Boombox.StartCoroutine(LoadSongCoroutine(newPath));
             }
             else
@@ -283,11 +305,10 @@ namespace YoutubeBoombox
                 {
                     string id = videoIds[PlaylistCurrentIndex + 1];
                     string url = $"https://youtube.com/watch?v={id}";
-                    string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
 
                     DebugLog($"Preparing {url} ({id})", EnableDebugLogs.Value);
 
-                    PrepareSong(id, url, newPath);
+                    PrepareSong(id, url);
                 }
                 else
                 {
@@ -300,9 +321,12 @@ namespace YoutubeBoombox
             }
         }
 
-        public async void PrepareSong(string id, string url, string newPath)
+        public async void PrepareSong(string id, string url)
         {
             DebugLog($"Preparing next song {id}", EnableDebugLogs.Value);
+
+            string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
+
             if (File.Exists(newPath))
             {
                 DebugLog($"Already exists, reusing.", EnableDebugLogs.Value);
@@ -343,7 +367,6 @@ namespace YoutubeBoombox
             if (res.Success)
             {
                 DebugLog($"Prepared {id} successfully", EnableDebugLogs.Value);
-                File.Move(res.Data, newPath);
             }
             else
             {
@@ -391,17 +414,14 @@ namespace YoutubeBoombox
 
             string id = videoIds[0];
             string url = $"https://youtube.com/watch?v={id}";
-            string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
 
             DebugLog($"First playlist song found: {url} ({id})... Downloading.", EnableDebugLogs.Value);
 
-            DownloadSong(id, url, newPath);
+            DownloadSong(id, url);
         }
 
         public void ProcessRequest(string id, bool isPlaylist)
         {
-            string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
-
             string url = !isPlaylist ? $"https://youtube.com/watch?v={id}" : $"https://youtube.com/playlist?list={id}";
 
             CurrentUrl = url;
@@ -412,7 +432,7 @@ namespace YoutubeBoombox
 
             if (!IsPlaylist)
             {
-                DownloadCurrentVideo(newPath);
+                DownloadCurrentVideo();
             }
             else
             {

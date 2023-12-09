@@ -1,5 +1,11 @@
 This changelog only has changes from 1.2.0 onward.
 
+# Version 1.3.1
+- [Fix] Fixed an issue where only the host was able to start downloading songs
+- [Fix] Fixed an issue where songs that "have drm" set to "maybe" in youtube API would cause song info downloading to break
+- [Fix] Fixed an issue where songs with odd characters could not be downloaded (#9)
+- [Fix] Fixed a potential issue with links that have additional information attached in query parameters
+
 # Version 1.3.0
 - [Rewrite] Completely rewrote the networking using unity NGO rpcs. Thanks to [UnityNetcodeWeaver](https://github.com/EvaisaDev/UnityNetcodeWeaver)
   - It should now be much more stable

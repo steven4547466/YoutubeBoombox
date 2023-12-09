@@ -65,7 +65,7 @@ namespace YoutubeBoombox
         }
     }
 
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.3.0")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.3.1")]
     [BepInDependency("LC_API")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
@@ -94,6 +94,11 @@ namespace YoutubeBoombox
         public static void LogInfo(object data)
         {
             Singleton.Logger.LogInfo(data);
+        }
+
+        public static void LogError(object data)
+        {
+            Singleton.Logger.LogError(data);
         }
 
         public static void DebugLog(object data, bool shouldLog = true)
@@ -143,6 +148,8 @@ namespace YoutubeBoombox
 
             YoutubeDL.OutputFolder = DownloadsPath;
 
+            YoutubeDL.OutputFileTemplate = "%(id)s.%(ext)s";
+
             Harmony = new Harmony($"steven4547466.YoutubeBoombox-{DateTime.Now.Ticks}");
 
             Harmony.PatchAll();
@@ -181,26 +188,26 @@ namespace YoutubeBoombox
                 }
             });
 
-            //CommandHandler.CommandHandler.RegisterCommand("spawnbox", (string[] args) =>
-            //{
-            //    NetworkManager manager = FindObjectOfType<NetworkManager>();
-            //    if (manager != null)
-            //    {
-            //        foreach (NetworkPrefab prefab in manager.NetworkConfig.Prefabs.Prefabs)
-            //        {
-            //            if (prefab.Prefab.TryGetComponent(out BoomboxItem boombox))
-            //            {
-            //                BoomboxItem spawnedBox = Instantiate(boombox, StartOfRound.Instance.localPlayerController.transform.position, default);
-            //                spawnedBox.insertedBattery.charge = 0.2f;
-            //                spawnedBox.GetComponent<NetworkObject>().Spawn();
+            CommandHandler.CommandHandler.RegisterCommand("spawnbox", (string[] args) =>
+            {
+                NetworkManager manager = FindObjectOfType<NetworkManager>();
+                if (manager != null)
+                {
+                    foreach (NetworkPrefab prefab in manager.NetworkConfig.Prefabs.Prefabs)
+                    {
+                        if (prefab.Prefab.TryGetComponent(out BoomboxItem boombox))
+                        {
+                            BoomboxItem spawnedBox = Instantiate(boombox, StartOfRound.Instance.localPlayerController.transform.position, default);
+                            spawnedBox.insertedBattery.charge = 0.2f;
+                            spawnedBox.GetComponent<NetworkObject>().Spawn();
 
-            //                spawnedBox.SyncBatteryServerRpc(20);
-                                
-            //                break;
-            //            }
-            //        }
-            //    }
-            //});
+                            spawnedBox.SyncBatteryServerRpc(20);
+
+                            break;
+                        }
+                    }
+                }
+            });
         }
 
         private void SetupNetworking()
@@ -227,7 +234,7 @@ namespace YoutubeBoombox
 
             if (url.Contains("?v="))
             {
-                id = url.Split(new[] { "?v=" }, StringSplitOptions.None)[1];
+                id = url.Split(new[] { "?v=" }, StringSplitOptions.None)[1].Split('&')[0];
             }
             else if (url.Contains("youtu.be"))
             {

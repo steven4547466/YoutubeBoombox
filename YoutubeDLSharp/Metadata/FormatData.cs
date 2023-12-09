@@ -74,7 +74,7 @@ namespace YoutubeDLSharp.Metadata
         [JsonProperty("no_resume")]
         public bool? NoResume { get; set; }
         [JsonProperty("has_drm")]
-        public bool? HasDRM { get; set; }
+        public string HasDRM { get; set; }
 
         public override string ToString() => $"[{Extension}] {Format}";
 
