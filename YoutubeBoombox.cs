@@ -188,26 +188,26 @@ namespace YoutubeBoombox
                 }
             });
 
-            CommandHandler.CommandHandler.RegisterCommand("spawnbox", (string[] args) =>
-            {
-                NetworkManager manager = FindObjectOfType<NetworkManager>();
-                if (manager != null)
-                {
-                    foreach (NetworkPrefab prefab in manager.NetworkConfig.Prefabs.Prefabs)
-                    {
-                        if (prefab.Prefab.TryGetComponent(out BoomboxItem boombox))
-                        {
-                            BoomboxItem spawnedBox = Instantiate(boombox, StartOfRound.Instance.localPlayerController.transform.position, default);
-                            spawnedBox.insertedBattery.charge = 0.2f;
-                            spawnedBox.GetComponent<NetworkObject>().Spawn();
+            //CommandHandler.CommandHandler.RegisterCommand("spawnbox", (string[] args) =>
+            //{
+            //    NetworkManager manager = FindObjectOfType<NetworkManager>();
+            //    if (manager != null)
+            //    {
+            //        foreach (NetworkPrefab prefab in manager.NetworkConfig.Prefabs.Prefabs)
+            //        {
+            //            if (prefab.Prefab.TryGetComponent(out BoomboxItem boombox))
+            //            {
+            //                BoomboxItem spawnedBox = Instantiate(boombox, StartOfRound.Instance.localPlayerController.transform.position, default);
+            //                spawnedBox.insertedBattery.charge = 0.2f;
+            //                spawnedBox.GetComponent<NetworkObject>().Spawn();
 
-                            spawnedBox.SyncBatteryServerRpc(20);
+            //                spawnedBox.SyncBatteryServerRpc(20);
 
-                            break;
-                        }
-                    }
-                }
-            });
+            //                break;
+            //            }
+            //        }
+            //    }
+            //});
         }
 
         private void SetupNetworking()
