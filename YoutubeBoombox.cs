@@ -24,6 +24,7 @@ using BepInEx.Configuration;
 using YoutubeDLSharp.Metadata;
 using System.Security.Policy;
 using Newtonsoft.Json;
+using System.Reflection;
 
 namespace YoutubeBoombox
 {
@@ -64,7 +65,7 @@ namespace YoutubeBoombox
         }
     }
 
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.2.2")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.3.0")]
     [BepInDependency("LC_API")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
@@ -90,9 +91,9 @@ namespace YoutubeBoombox
 
         internal static List<string> PathsThisSession { get; private set; } = new List<string>();
 
-        public static void Log(object data, BepInEx.Logging.LogLevel level = BepInEx.Logging.LogLevel.Info)
+        public static void LogInfo(object data)
         {
-            Singleton.Logger.Log(level, data);
+            Singleton.Logger.LogInfo(data);
         }
 
         public static void DebugLog(object data, bool shouldLog = true)
@@ -190,113 +191,32 @@ namespace YoutubeBoombox
             //            if (prefab.Prefab.TryGetComponent(out BoomboxItem boombox))
             //            {
             //                BoomboxItem spawnedBox = Instantiate(boombox, StartOfRound.Instance.localPlayerController.transform.position, default);
+            //                spawnedBox.insertedBattery.charge = 0.2f;
             //                spawnedBox.GetComponent<NetworkObject>().Spawn();
+
+            //                spawnedBox.SyncBatteryServerRpc(20);
+                                
+            //                break;
             //            }
             //        }
-            //    } 
+            //    }
             //});
         }
 
         private void SetupNetworking()
         {
-            Networking.GetString += GetNetworkStringBroadcast;
-            Networking.GetInt += GetNetworkIntBroadcast;
-        }
-
-        private void GetNetworkStringBroadcast(string data, string signature)
-        {
-            DebugLog($"GOT STRING BROADCAST {data}|{signature}", EnableDebugLogs.Value);
-            if (signature == NetworkingSignatures.BOOMBOX_SIG)
+            var types = Assembly.GetExecutingAssembly().GetTypes();
+            foreach (var type in types)
             {
-                string[] split = data.Split('|');
-                string id = split[0];
-                string type = split[1];
-                ulong netId;
-
-                if (!ulong.TryParse(split[2], out netId))
+                var methods = type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+                foreach (var method in methods)
                 {
-                    Logger.LogError("Unable to find boombox id in data");
-
-                    return;
+                    var attributes = method.GetCustomAttributes(typeof(RuntimeInitializeOnLoadMethodAttribute), false);
+                    if (attributes.Length > 0)
+                    {
+                        method.Invoke(null, null);
+                    }
                 }
-
-                BoomboxItem boombox = FindObjectsOfType<BoomboxItem>().FirstOrDefault(b => b.NetworkObjectId == netId);
-
-                if (!boombox)
-                {
-                    Logger.LogError($"Unable to find boombox with net id: {netId}");
-
-                    return;
-                }
-
-                BoomboxPatch.CurrentBoombox = boombox;
-
-                BoomboxController.Download(boombox, id, type);
-            }
-            else if (signature == NetworkingSignatures.BOOMBOX_OFF_SIG)
-            {
-                string[] split = data.Split('|');
-
-                ulong netId;
-
-                if (!ulong.TryParse(split[0], out netId))
-                {
-                    Logger.LogError("Unable to find boombox id in data");
-
-                    return;
-                }
-
-                bool pitchDown;
-                if (!bool.TryParse(split[1], out pitchDown))
-                {
-                    Logger.LogError("Unable to find pitchDown in data");
-
-                    return;
-                }
-
-                BoomboxItem boombox = FindObjectsOfType<BoomboxItem>().FirstOrDefault(b => b.NetworkObjectId == netId);
-
-                if (!boombox)
-                {
-                    Logger.LogError($"Unable to find boombox with net id: {netId}");
-
-                    return;
-                }
-
-                if (pitchDown)
-                {
-                    boombox.StartCoroutine(boombox.musicPitchDown());
-                }
-                else
-                {
-                    boombox.boomboxAudio.Stop();
-                    boombox.boomboxAudio.PlayOneShot(boombox.stopAudios[UnityEngine.Random.Range(0, boombox.stopAudios.Length)]);
-                }
-
-                boombox.timesPlayedWithoutTurningOff = 0;
-
-                boombox.isBeingUsed = false;
-                boombox.isPlayingMusic = false;
-                BoomboxController.ResetReadyClients(boombox);
-            }
-        }
-
-        private void GetNetworkIntBroadcast(int data, string signature)
-        {
-            DebugLog($"GOT INT BROADCAST {data}|{signature}", EnableDebugLogs.Value);
-            if (signature == NetworkingSignatures.BOOMBOX_READY_CLIENT_SIG)
-            {
-                ulong netId = (ulong)data;
-                BoomboxItem boombox = FindObjectsOfType<BoomboxItem>().FirstOrDefault(b => b.NetworkObjectId == netId);
-
-                if (!boombox)
-                {
-                    Logger.LogError($"Unable to find boombox with net id: {netId}");
-
-                    return;
-                }
-
-                BoomboxController.AddReadyClient(boombox);
             }
         }
 
@@ -340,7 +260,27 @@ namespace YoutubeBoombox
 
             (string id, string type) = GetIdAndTypeFromUrl(url);
 
-            BoomboxController.Download(BoomboxPatch.CurrentBoombox, id, type, true);
+            if (BoomboxPatch.CurrentBoombox.TryGetComponent(out BoomboxNetworking networking))
+            {
+                networking.Download(id, type == "playlist");
+            }
+        }
+
+        [HarmonyPatch(typeof(GameNetworkManager), nameof(GameNetworkManager.Start))]
+        class GameNetworkManagerPatch
+        {
+            public static void Postfix(GameNetworkManager __instance)
+            {
+                foreach (NetworkPrefab prefab in __instance.GetComponent<NetworkManager>().NetworkConfig.Prefabs.Prefabs)
+                {
+                    if (prefab.Prefab.GetComponent<BoomboxItem>() != null)
+                    {
+                        prefab.Prefab.AddComponent<BoomboxNetworking>();
+
+                        break;
+                    }
+                }
+            }
         }
 
         [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.DiscardItemOnClient))]
@@ -415,33 +355,19 @@ namespace YoutubeBoombox
                 {
                     BoomboxPocketPatch.Debounce = false;
 
-                    Networking.Broadcast($"{__instance.NetworkObjectId}|{pitchDown}", NetworkingSignatures.BOOMBOX_OFF_SIG);
                     DebugLog("Stopping boombox", EnableDebugLogs.Value);
 
-                    if (pitchDown)
+                    if (__instance.TryGetComponent(out BoomboxNetworking networking))
                     {
-                        __instance.StartCoroutine(__instance.musicPitchDown());
+                        networking.StopMusicServerRpc(pitchDown);
                     }
-                    else
-                    {
-                        __instance.boomboxAudio.Stop();
-                        __instance.boomboxAudio.PlayOneShot(__instance.stopAudios[UnityEngine.Random.Range(0, __instance.stopAudios.Length)]);
-                    }
-
-                    __instance.timesPlayedWithoutTurningOff = 0;
-
-                    __instance.isBeingUsed = false;
-                    __instance.isPlayingMusic = false;
-                    BoomboxController.ResetReadyClients(__instance);
 
                     CurrentBoombox = null;
 
                     return false;
                 }
 
-                __instance.isBeingUsed = startMusic;
-
-                if (!startMusic)
+                if (!__instance.isPlayingMusic && !pitchDown)
                 {
                     if (ShowingGUI)
                     {
@@ -449,7 +375,8 @@ namespace YoutubeBoombox
                         return false;
                     }
 
-                    BoomboxController.ResetReadyClients(__instance);
+                    if (__instance.TryGetComponent(out BoomboxNetworking networking))
+                        networking.ResetReadyClients();
 
                     DebugLog("Opening boombox gui", EnableDebugLogs.Value);
 
@@ -461,26 +388,15 @@ namespace YoutubeBoombox
 
                     ShowingGUI = true;
                 }
-                else if (__instance.isPlayingMusic)
+                else
                 {
                     Networking.Broadcast($"{__instance.NetworkObjectId}|{pitchDown}", NetworkingSignatures.BOOMBOX_OFF_SIG);
                     DebugLog("Stopping boombox", EnableDebugLogs.Value);
 
-                    if (pitchDown)
+                    if (__instance.TryGetComponent(out BoomboxNetworking networking))
                     {
-                        __instance.StartCoroutine(__instance.musicPitchDown());
+                        networking.StopMusicServerRpc(pitchDown);
                     }
-                    else
-                    {
-                        __instance.boomboxAudio.Stop();
-                        __instance.boomboxAudio.PlayOneShot(__instance.stopAudios[UnityEngine.Random.Range(0, __instance.stopAudios.Length)]);
-                    }
-
-                    __instance.timesPlayedWithoutTurningOff = 0;
-
-                    __instance.isBeingUsed = false;
-                    __instance.isPlayingMusic = false;
-                    BoomboxController.ResetReadyClients(__instance);
 
                     CurrentBoombox = null;
                 }

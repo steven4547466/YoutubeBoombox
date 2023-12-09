@@ -15,15 +15,15 @@ How to use:
 Features:
 - Play music from youtube and sync to all clients as long as everyone has the mod
 - Client side boombox volume control
-  - Hold a boombox and type `/bbv number` to change the volume of that boombox on your client
+  - Type `/bbv number` to change the volume of the closest boombox on your client within 15m
+    - If you are holding a boombox, the command will always target that one
     - Example: `/bbv 50` is half as loud
 - Supports basic `youtube.com/watch` links and shortened `youtu.be` links
 - Supports playlist links like `youtube.com/playlist?list=LIST_ID` ensure there's no `v=` in there, otherwise it'll play just the single video
-- Retains downloads until you restart the game, meaning playing the same songs in the same session only needs to download once, making repeats faster
+- Retains a configurable amount of downloads until you restart the game (which is also configurable), meaning playing the same songs in the same session only needs to download once, making repeats faster
 
 TODO:
 - Add a config option to keep the boombox on while in your inventory.
 - Better UI.
 - Allow the mod to be used in lobbies where not everyone has the mod by only waiting on the number of people with the mod.
   - Currently if you use the mod in a lobby and not everyone has it, it will wait forever.
-- Playlist support.

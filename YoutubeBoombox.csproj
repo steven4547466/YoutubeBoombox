@@ -23,13 +23,14 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
+    <DebugType>portable</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony">
@@ -127,6 +128,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BoomboxController.cs" />
+    <Compile Include="BoomboxNetworking.cs" />
     <Compile Include="ConfigNumberClamper.cs" />
     <Compile Include="NetworkingSignatures.cs" />
     <Compile Include="YoutubeBoombox.cs" />
@@ -182,4 +184,8 @@
     <Content Include="YoutubeDLSharp\Options\autoconvert.py" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>cd D:\NetcodePatcher
+NetcodePatcher.dll $(TargetDir) deps/</PostBuildEvent>
+  </PropertyGroup>
 </Project>
