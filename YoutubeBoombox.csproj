@@ -45,8 +45,7 @@
     <Reference Include="CommandHandler">
       <HintPath>..\CommandHandler\bin\Release\CommandHandler.dll</HintPath>
     </Reference>
-    <Reference Include="LC_API, Version=2.1.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Include="LC_API">
       <HintPath>..\..\AppData\Roaming\r2modmanPlus-local\LethalCompany\profiles\Tedgang\BepInEx\plugins\2018-LC_API\LC_API.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
@@ -104,6 +103,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\SteamLibrary\steamapps\common\Lethal Company\Lethal Company_Data\Managed\UnityEngine.InputModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SteamLibrary\steamapps\common\Lethal Company\Lethal Company_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\SteamLibrary\steamapps\common\Lethal Company\Lethal Company_Data\Managed\UnityEngine.UI.dll</HintPath>
@@ -127,8 +130,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BoomboxControllerOLD.cs" />
     <Compile Include="BoomboxController.cs" />
-    <Compile Include="BoomboxNetworking.cs" />
     <Compile Include="ConfigNumberClamper.cs" />
     <Compile Include="NetworkingSignatures.cs" />
     <Compile Include="YoutubeBoombox.cs" />
@@ -180,7 +183,6 @@
     <None Include="YoutubeDLSharp\LICENSE" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="CommandHandler.dll" />
     <Content Include="YoutubeDLSharp\Options\autoconvert.py" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

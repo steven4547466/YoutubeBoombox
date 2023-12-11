@@ -1,385 +1,565 @@
-﻿// OLD CONTROLLER BEFORE USING NETWORKED OBJECT
-
-//using BepInEx.Logging;
-//using BepInEx;
-//using LC_API.ServerAPI;
-//using System;
-//using System.Collections.Generic;
-//using System.Linq;
-//using System.Security.Policy;
-//using System.Text;
-//using System.Threading.Tasks;
-//using System.IO;
-//using YoutubeDLSharp;
-//using static YoutubeBoombox.YoutubeBoombox;
-//using UnityEngine;
-//using System.Collections;
-//using UnityEngine.InputSystem.XR;
-//using System.Runtime.InteropServices;
-
-//namespace YoutubeBoombox
-//{
-//    public class BoomboxController
-//    {
-//        private static Dictionary<BoomboxItem, BoomboxController> controllers = new Dictionary<BoomboxItem, BoomboxController>();
-        
-//        public static void Download(BoomboxItem boombox, string id, string type, bool broadcast = false)
-//        {
-//            BoomboxController controller = null;
-
-//            if (!controllers.ContainsKey(boombox))
-//            {
-//                controller = new BoomboxController(boombox);
-//                controllers.Add(boombox, controller);
-//            }
-//            else
-//            {
-//                controller = controllers[boombox];
-//            }
-
-//            controller.ProcessRequest(id, type, broadcast);
-//        }
-
-//        public static void AddReadyClient(BoomboxItem boombox, bool self = false)
-//        {
-//            BoomboxController controller = null;
-
-//            if (!controllers.ContainsKey(boombox))
-//            {
-//                controller = new BoomboxController(boombox);
-//                controllers.Add(boombox, controller);
-//            } 
-//            else
-//            {
-//                controller = controllers[boombox];
-//            }
-
-//            controller.AddReadyClient(self);
-//        }
-
-//        public static void SetIsPlaylist(BoomboxItem boombox, bool isPlaylist)
-//        {
-//            if (controllers.TryGetValue(boombox, out BoomboxController controller))
-//            {
-//                controller.IsPlaylist = isPlaylist;
-//            }
-//            else
-//            {
-//                BoomboxController newController = new BoomboxController(boombox);
-//                controller.IsPlaylist = isPlaylist;
-//                controllers.Add(boombox, newController);
-//            }
-//        }
-
-//        public static void SetCurrentUrl(BoomboxItem boombox, string url)
-//        {
-//            if (controllers.TryGetValue(boombox, out BoomboxController controller))
-//            {
-//                controller.CurrentUrl = url;
-//            }
-//            else
-//            {
-//                BoomboxController newController = new BoomboxController(boombox);
-//                controller.CurrentUrl = url;
-//                controllers.Add(boombox, newController);
-//            }
-//        }
-
-//        public static void SetCurrentId(BoomboxItem boombox, string id)
-//        {
-//            if (controllers.TryGetValue(boombox, out BoomboxController controller))
-//            {
-//                controller.CurrentId = id;
-//            }
-//            else
-//            {
-//                BoomboxController newController = new BoomboxController(boombox);
-//                controller.CurrentId = id;
-//                controllers.Add(boombox, newController);
-//            }
-//        }
-
-//        public static void ResetReadyClients(BoomboxItem boombox)
-//        {
-//            if (controllers.TryGetValue(boombox, out BoomboxController controller))
-//            {
-//                controller.ReadyClients = 0;
-//            }
-//        }
-
-//        public static void Clear()
-//        {
-//            controllers.Clear();
-//        }
-
-//        public BoomboxItem Boombox { get; private set; }
-
-//        public bool LocalPlayed { get; set; }
-
-//        public string CurrentUrl { get; set; }
-
-//        public string CurrentId { get; set; }
-
-//        public bool IsPlaylist { get; set; } = false;
-
-//        public int PlaylistCurrentIndex { get; set; } = 0;
-
-//        public int ReadyClients { get; set; } = 0;
-
-//        public BoomboxController(BoomboxItem boombox)
-//        {
-//            Boombox = boombox;
-//        }
-
-//        public void AddReadyClient(bool self = false)
-//        {
-//            ReadyClients++;
-
-//            if (self) Networking.Broadcast((int)Boombox.NetworkObjectId, NetworkingSignatures.BOOMBOX_READY_CLIENT_SIG);
-
-//            DebugLog($"READY CLIENT {ReadyClients}/{StartOfRound.Instance.connectedPlayersAmount + 1} | IS SELF?: {self}", EnableDebugLogs.Value);
-
-//            if (ReadyClients >= StartOfRound.Instance.connectedPlayersAmount + 1)
-//            {
-//                ReadyClients = 0;
-//                Boombox.boomboxAudio.loop = true;
-//                Boombox.isBeingUsed = true;
-//                Boombox.isPlayingMusic = true;
-//                Boombox.boomboxAudio.Play();
-
-//                if (IsPlaylist)
-//                {
-//                    Boombox.boomboxAudio.loop = false;
-//                    Boombox.StartCoroutine(PlaylistCoroutine());
-//                }
-//            }
-//        }
-
-//        public IEnumerator PlaylistCoroutine()
-//        {
-//            PrepareNextSongInPlaylist();
-//            while (Boombox.boomboxAudio.isPlaying)
-//            {
-//                yield return new WaitForSeconds(1);
-//            }
-//            IncrementPlaylistIndex();
-//        }
-
-//        public IEnumerator LoadSongCoroutine(string path)
-//        {
-//            if (PathsThisSession.Contains(path)) PathsThisSession.Remove(path);
-
-//            PathsThisSession.Insert(0, path);
-
-//            if (PathsThisSession.Count > MaxCachedDownloads.Value)
-//            {
-//                File.Delete(PathsThisSession[PathsThisSession.Count - 1]);
-//                PathsThisSession.RemoveAt(PathsThisSession.Count - 1);
-//            }
-
-//            string url = string.Format("file://{0}", path);
-//            WWW www = new WWW(url);
-//            yield return www;
-
-//            Boombox.boomboxAudio.clip = www.GetAudioClip(false, false);
-//            Boombox.boomboxAudio.pitch = 1f;
-
-//            YoutubeBoombox.DebugLog("BOOMBOX READY!", EnableDebugLogs.Value);
-
-//            AddReadyClient(true);
-//        }
-
-//        public void IncrementPlaylistIndex()
-//        {
-//            Boombox.boomboxAudio.Stop();
-
-//            PlaylistCurrentIndex++;
-
-//            ReadyClients = 0;
-
-//            if (InfoCache.PlaylistCache.TryGetValue(CurrentId, out List<string> videoIds))
-//            {
-//                if (PlaylistCurrentIndex < videoIds.Count)
-//                {
-//                    string id = videoIds[PlaylistCurrentIndex];
-//                    string url = $"https://youtube.com/watch?v={id}";
-//                    string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
-
-//                    DownloadVideo(id, url, newPath);
-//                }
-//            }
-//        }
-
-//        public void DownloadCurrentVideo(string newPath)
-//        {
-//            DownloadVideo(CurrentId, CurrentUrl, newPath);
-//        }
-
-//        public async void DownloadVideo(string id, string url, string newPath)
-//        {
-//            if (File.Exists(newPath))
-//            {
-//                Boombox.StartCoroutine(LoadSongCoroutine(newPath));
-
-//                return;
-//            }
-
-//            if (InfoCache.DurationCache.TryGetValue(id, out float duration))
-//            {
-//                if (duration > MaxSongDuration.Value)
-//                {
-//                    AddReadyClient(true);
-
-//                    return;
-//                }
-//            }
-//            else
-//            {
-//                var videoDataResult = await YoutubeBoombox.YoutubeDL.RunVideoDataFetch(url);
-
-//                if (videoDataResult.Success && videoDataResult.Data.Duration != null)
-//                {
-//                    InfoCache.DurationCache.Add(id, (float)videoDataResult.Data.Duration);
-//                    // Skip downloading videos that are too long
-//                    if (videoDataResult.Data.Duration > MaxSongDuration.Value)
-//                    {
-//                        AddReadyClient(true);
-
-//                        return;
-//                    }
-//                }
-//                else
-//                {
-//                    AddReadyClient(true);
-
-//                    return;
-//                }
-//            }
-
-//            var res = await YoutubeBoombox.YoutubeDL.RunAudioDownload(url, YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
-
-//            if (res.Success)
-//            {
-//                YoutubeBoombox.DebugLog(res.Data, EnableDebugLogs.Value);
-//                YoutubeBoombox.DebugLog(newPath, EnableDebugLogs.Value);
-
-//                File.Move(res.Data, newPath);
-
-//                Boombox.StartCoroutine(LoadSongCoroutine(newPath));
-//            }
-//        }
-
-//        public void PrepareNextSongInPlaylist()
-//        {
-//            if (InfoCache.PlaylistCache.TryGetValue(CurrentId, out List<string> videoIds))
-//            {
-//                if (PlaylistCurrentIndex + 1 < videoIds.Count)
-//                {
-//                    string id = videoIds[PlaylistCurrentIndex + 1];
-//                    string url = $"https://youtube.com/watch?v={id}";
-//                    string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
-
-//                    PrepareSong(id, url, newPath);
-//                }
-//            }
-//        }
-
-//        public async void PrepareSong(string id, string url, string newPath)
-//        {
-//            if (File.Exists(newPath)) return;
-
-//            if (InfoCache.DurationCache.TryGetValue(id, out float duration))
-//            {
-//                if (duration > MaxSongDuration.Value) return;
-//            } 
-//            else
-//            {
-//                var videoDataResult = await YoutubeBoombox.YoutubeDL.RunVideoDataFetch(url);
-
-//                if (videoDataResult.Success && videoDataResult.Data.Duration != null)
-//                {
-//                    InfoCache.DurationCache.Add(id, (float)videoDataResult.Data.Duration);
-//                    // Skip preparing videos that are too long
-//                    if (videoDataResult.Data.Duration > MaxSongDuration.Value) return;
-//                }
-//                else
-//                {
-//                    return;
-//                }
-//            }
-
-//            var res = await YoutubeBoombox.YoutubeDL.RunAudioDownload(url, YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
-
-//            if (res.Success) File.Move(res.Data, newPath);
-//        }
-
-//        public async void DownloadCurrentPlaylist()
-//        {
-//            PlaylistCurrentIndex = 0;
-//            if (!InfoCache.PlaylistCache.TryGetValue(CurrentId, out List<string> videoIds))
-//            {
-//                var playlistResult = await YoutubeBoombox.YoutubeDL.RunVideoPlaylistDownload(CurrentUrl, 1, null, null, "bestvideo+bestaudio/best",
-//                    YoutubeDLSharp.Options.VideoRecodeFormat.None, default, null, new InfoCache(CurrentId),
-//                    new YoutubeDLSharp.Options.OptionSet()
-//                    {
-//                        FlatPlaylist = true,
-//                        DumpJson = true
-//                    });
-
-//                if (!playlistResult.Success)
-//                {
-//                    AddReadyClient(Boombox, true);
-
-//                    return;
-//                }
-//                else
-//                {
-//                    videoIds = InfoCache.PlaylistCache[CurrentId];
-//                }
-//            }
-
-//            if (videoIds.Count == 0)
-//            {
-//                AddReadyClient(true);
-
-//                return;
-//            }
-
-//            string id = videoIds[0];
-//            string url = $"https://youtube.com/watch?v={id}";
-//            string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
-
-//            DownloadVideo(id, url, newPath);
-//        }
-
-//        public void ProcessRequest(string id, string type, bool broadcast = false)
-//        {
-//            if (broadcast)
-//            {
-//                LocalPlayed = true;
-//                Networking.Broadcast($"{id}|{type}|{Boombox.NetworkObjectId}", NetworkingSignatures.BOOMBOX_SIG);
-//            } 
-//            else
-//            {
-//                LocalPlayed = false;
-//            }
-
-//            string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
-
-//            string url = type == "video" ? $"https://youtube.com/watch?v={id}" : $"https://youtube.com/playlist?list={id}";
-
-//            CurrentUrl = url;
-//            IsPlaylist = type != "video";
-//            CurrentId = id;
-
-//            if (!IsPlaylist)
-//            {
-//                DownloadCurrentVideo(newPath);
-//            }
-//            else
-//            {
-//                DownloadCurrentPlaylist();
-//            }
-//        }
-//    }
-//}
+﻿using GameNetcodeStuff;
+using HarmonyLib;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security.Policy;
+using System.Text;
+using System.Threading.Tasks;
+using Unity.Netcode;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using YoutubeDLSharp;
+using static YoutubeBoombox.YoutubeBoombox;
+
+namespace YoutubeBoombox
+{
+    public class BoomboxController : NetworkBehaviour
+    {
+        private BoomboxItem Boombox { get; set; }
+
+        private YoutubeBoomboxGUI GUI { get; set; }
+
+        private string CurrentId { get; set; }
+
+        private string CurrentUrl { get; set; }
+
+        private bool IsPlaylist { get; set; }
+
+        private int PlaylistCurrentIndex { get; set; } = 0;
+
+        private List<ulong> ReadyClients { get; set; } = new List<ulong>();
+
+        private NetworkList<ulong> ClientsNeededToBeReady { get; } = new NetworkList<ulong>();
+
+        public void Awake()
+        {
+            Boombox = GetComponent<BoomboxItem>();
+        }
+
+        public void Start()
+        {
+            DebugLog($"Boombox started client: {IsClient} host: {IsHost} server: {IsServer}", EnableDebugLogs.Value);
+            IHaveTheModServerRpc();
+        }
+
+        public void Update()
+        {
+            if (Keyboard.current[CustomBoomboxButton.Value].wasPressedThisFrame && !IsGUIShowing())
+            {
+                DebugLog($"Boombox button pressed!", EnableDebugLogs.Value);
+
+                GUI = gameObject.AddComponent<YoutubeBoomboxGUI>();
+
+                DisableControls();
+            }
+        }
+
+        private void DisableControls()
+        {
+            StartOfRound.Instance.localPlayerController.playerActions.Disable();
+        }
+
+        private void EnableControls()
+        {
+            StartOfRound.Instance.localPlayerController.playerActions.Enable();
+        }
+
+        private static GUIStyle style = new GUIStyle() { alignment = TextAnchor.MiddleCenter, normal = new GUIStyleState() { textColor = Color.white } };
+
+        public void OnGUI()
+        {
+            if (StartOfRound.Instance != null && StartOfRound.Instance.localPlayerController != null 
+                && StartOfRound.Instance.localPlayerController.currentlyHeldObjectServer == Boombox)
+            {
+                const int width = 115;
+                const int height = 20;
+                UnityEngine.GUI.Box(new Rect(Screen.width - width, Screen.height - height, width, height), string.Empty);
+                UnityEngine.GUI.Label(new Rect(Screen.width - width, Screen.height - height, width, height), $"Open YT GUI: [{CustomBoomboxButton.Value}]", style);
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void IHaveTheModServerRpc(ServerRpcParams serverRpcParams = default)
+        {
+            DebugLog($"Regsitering mod server rpc called", EnableDebugLogs.Value);
+
+            if (!IsServer) return;
+
+            ulong sender = serverRpcParams.Receive.SenderClientId;
+
+            if (!ClientsNeededToBeReady.Contains(sender))
+            {
+                DebugLog($"{sender} has registered having this mod", EnableDebugLogs.Value);
+
+                ClientsNeededToBeReady.Add(sender);
+            }
+        }
+
+        public void ClientDisconnected(ulong clientId)
+        {
+            if (!IsServer) return;
+
+            ClientsNeededToBeReady.Remove(clientId);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void DownloadServerRpc(string id, bool isPlaylist)
+        {
+            DebugLog($"Download server rpc received, sending to all", EnableDebugLogs.Value);
+            DownloadClientRpc(id, isPlaylist);
+        }
+
+        [ClientRpc]
+        public void DownloadClientRpc(string id, bool isPlaylist)
+        {
+            DebugLog($"Download request received on client, processing.", EnableDebugLogs.Value);
+            ProcessRequest(id, isPlaylist);
+        }
+
+        public void Download(string id, bool isPlaylist)
+        {
+            DebugLog($"Download called, calling everywhere", EnableDebugLogs.Value);
+            DownloadServerRpc(id, isPlaylist);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void IAmReadyServerRpc(ServerRpcParams serverRpcParams = default)
+        {
+            if (!IsServer) return;
+
+            ulong sender = serverRpcParams.Receive.SenderClientId;
+
+            DebugLog($"Ready called from {sender}", EnableDebugLogs.Value);
+
+            //ClientRpcParams clientRpcParams = new ClientRpcParams
+            //{
+            //    Send = new ClientRpcSendParams
+            //    {
+            //        TargetClientIds = NetworkManager.Singleton.ConnectedClientsIds.Where(id => id != sender).ToArray()
+            //    }
+            //};
+
+            AddReadyClientRpc(sender);
+        }
+
+        [ClientRpc]
+        public void AddReadyClientRpc(ulong readyId)
+        {
+            DebugLog($"READY CLIENT CALLED already ready?: {ReadyClients.Contains(readyId)}", EnableDebugLogs.Value);
+            if (ReadyClients.Contains(readyId)) return;
+
+            ReadyClients.Add(readyId);
+
+            DebugLog($"READY CLIENT {ReadyClients.Count}/{ClientsNeededToBeReady.Count}", EnableDebugLogs.Value);
+
+            if (ReadyClients.Count >= ClientsNeededToBeReady.Count)
+            {
+                DebugLog($"Everyone ready, starting tunes!", EnableDebugLogs.Value);
+                ReadyClients.Clear();
+                Boombox.boomboxAudio.loop = true;
+                Boombox.boomboxAudio.pitch = 1;
+                Boombox.isBeingUsed = true;
+                Boombox.isPlayingMusic = true;
+                Boombox.boomboxAudio.Play();
+
+                if (IsPlaylist)
+                {
+                    DebugLog($"Currently playing playlist, starting playlist routine.", EnableDebugLogs.Value);
+                    Boombox.boomboxAudio.loop = false;
+                    Boombox.StartCoroutine(PlaylistCoroutine());
+                }
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void StopMusicServerRpc(bool pitchDown)
+        {
+            StopMusicClientRpc(pitchDown);
+        }
+
+        [ClientRpc]
+        public void StopMusicClientRpc(bool pitchDown)
+        {
+            if (pitchDown)
+            {
+                Boombox.StartCoroutine(Boombox.musicPitchDown());
+            }
+            else
+            {
+                Boombox.boomboxAudio.Stop();
+                Boombox.boomboxAudio.PlayOneShot(Boombox.stopAudios[UnityEngine.Random.Range(0, Boombox.stopAudios.Length)]);
+            }
+
+            Boombox.timesPlayedWithoutTurningOff = 0;
+
+            Boombox.isBeingUsed = false;
+            Boombox.isPlayingMusic = false;
+            ResetReadyClients();
+        }
+
+        public void ResetReadyClients()
+        {
+            ReadyClients.Clear();
+        }
+
+        public void PlaySong(string url)
+        {
+            DebugLog($"Trying to play {url}", EnableDebugLogs.Value);
+
+            DebugLog("Boombox found", EnableDebugLogs.Value);
+
+            (string id, string type) = GetIdAndTypeFromUrl(url);
+
+            Download(id, type == "playlist");
+        }
+
+        // Doesn't really destroy the GUI, the GUI destroys itself, just gotta set it to null.
+        public void DestroyGUI()
+        {
+            GUI = null;
+
+            EnableControls();
+        }
+
+        public bool IsGUIShowing()
+        {
+            return GUI != null;
+        }
+
+        public IEnumerator LoadSongCoroutine(string path)
+        {
+            DebugLog($"Loading song at {path}.", EnableDebugLogs.Value);
+
+            if (PathsThisSession.Contains(path)) PathsThisSession.Remove(path);
+
+            PathsThisSession.Insert(0, path);
+
+            if (PathsThisSession.Count > MaxCachedDownloads.Value)
+            {
+                File.Delete(PathsThisSession[PathsThisSession.Count - 1]);
+                PathsThisSession.RemoveAt(PathsThisSession.Count - 1);
+            }
+
+            string url = string.Format("file://{0}", path);
+            WWW www = new WWW(url);
+            yield return www;
+
+            DebugLog($"Successfully loaded song at {path}.", EnableDebugLogs.Value);
+
+            Boombox.boomboxAudio.clip = www.GetAudioClip(false, false);
+
+            DebugLog("BOOMBOX READY!", EnableDebugLogs.Value);
+
+            IAmReadyServerRpc();
+        }
+
+        public void IncrementPlaylistIndex()
+        {
+            DebugLog($"Incrementing playlist index.", EnableDebugLogs.Value);
+
+            Boombox.boomboxAudio.Stop();
+
+            PlaylistCurrentIndex++;
+
+            ReadyClients.Clear();
+
+            if (InfoCache.PlaylistCache.TryGetValue(CurrentId, out List<string> videoIds))
+            {
+                if (PlaylistCurrentIndex < videoIds.Count)
+                {
+                    string id = videoIds[PlaylistCurrentIndex];
+                    string url = $"https://youtube.com/watch?v={id}";
+
+                    DebugLog($"Downloading next playlist song.", EnableDebugLogs.Value);
+
+                    DownloadSong(id, url);
+                }
+                else
+                {
+                    DebugLog($"Playlist complete!", EnableDebugLogs.Value);
+                }
+            } 
+            else
+            {
+                DebugLog($"Playlist video ids not found! Cannot proceed!", EnableDebugLogs.Value);
+                IAmReadyServerRpc();
+            }
+        }
+
+        public IEnumerator PlaylistCoroutine()
+        {
+            PrepareNextSongInPlaylist();
+            while (Boombox.boomboxAudio.isPlaying)
+            {
+                yield return new WaitForSeconds(1);
+            }
+            IncrementPlaylistIndex();
+        }
+
+        public void DownloadCurrentVideo()
+        {
+            DebugLog($"Downloading {CurrentUrl} ({CurrentId})", EnableDebugLogs.Value);
+            DownloadSong(CurrentId, CurrentUrl);
+        }
+
+        public async void DownloadSong(string id, string url)
+        {
+            DebugLog($"Downloading song {url} ({id})", EnableDebugLogs.Value);
+
+            string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
+
+            if (id == null || url == null || newPath == null)
+            {
+                DebugLog($"Something is null. {id == null} {url == null} {newPath == null}", EnableDebugLogs.Value);
+
+                return;
+            }
+
+            if (File.Exists(newPath))
+            {
+                DebugLog($"File exists. Reusing.", EnableDebugLogs.Value);
+                Boombox.StartCoroutine(LoadSongCoroutine(newPath));
+
+                return;
+            }
+
+            if (InfoCache.DurationCache.TryGetValue(id, out float duration))
+            {
+                if (duration > MaxSongDuration.Value)
+                {
+                    DebugLog($"Song too long. Preventing download.", EnableDebugLogs.Value);
+                    IAmReadyServerRpc();
+
+                    return;
+                }
+            }
+            else
+            {
+                try
+                {
+                    DebugLog($"Downloading song duration data.", EnableDebugLogs.Value);
+                    var videoDataResult = await YoutubeBoombox.YoutubeDL.RunVideoDataFetch(url);
+                    DebugLog($"Downloaded song duration data.", EnableDebugLogs.Value);
+
+                    if (videoDataResult.Success && videoDataResult.Data.Duration != null)
+                    {
+                        InfoCache.DurationCache.Add(id, (float)videoDataResult.Data.Duration);
+                        // Skip downloading videos that are too long
+                        if (videoDataResult.Data.Duration > MaxSongDuration.Value)
+                        {
+                            DebugLog($"Song too long. Preventing download.", EnableDebugLogs.Value);
+                            IAmReadyServerRpc();
+
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        DebugLog($"Couldn't get song data, skipping.", EnableDebugLogs.Value);
+                        IAmReadyServerRpc();
+
+                        return;
+                    }
+                } 
+                catch(Exception e)
+                {
+                    DebugLog($"Error while downloading song data.", EnableDebugLogs.Value);
+                    DebugLog(e, EnableDebugLogs.Value);
+                    IAmReadyServerRpc();
+
+                    return;
+                }
+            }
+
+            DebugLog($"Trying to download {url}.", EnableDebugLogs.Value);
+
+            var res = await YoutubeBoombox.YoutubeDL.RunAudioDownload(url, YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
+
+            DebugLog($"Downloaded.", EnableDebugLogs.Value);
+
+            if (res.Success)
+            {
+                if (!res.Data.EndsWith(".mp3"))
+                {
+                    File.Move(res.Data, newPath);
+                }
+
+                DebugLog($"Song {id} downloaded successfully.", EnableDebugLogs.Value);
+                Boombox.StartCoroutine(LoadSongCoroutine(newPath));
+            }
+            else
+            {
+                DebugLog($"Failed to download song {id}.", EnableDebugLogs.Value);
+                IAmReadyServerRpc();
+            }
+        }
+
+        public void PrepareNextSongInPlaylist()
+        {
+            DebugLog($"Preparing next song in playlist", EnableDebugLogs.Value);
+            if (InfoCache.PlaylistCache.TryGetValue(CurrentId, out List<string> videoIds))
+            {
+                if (PlaylistCurrentIndex + 1 < videoIds.Count)
+                {
+                    string id = videoIds[PlaylistCurrentIndex + 1];
+                    string url = $"https://youtube.com/watch?v={id}";
+
+                    DebugLog($"Preparing {url} ({id})", EnableDebugLogs.Value);
+
+                    PrepareSong(id, url);
+                }
+                else
+                {
+                    DebugLog($"Playlist complete.", EnableDebugLogs.Value);
+                }
+            }
+            else
+            {
+                DebugLog($"Couldn't find playlist ids!", EnableDebugLogs.Value);
+            }
+        }
+
+        public async void PrepareSong(string id, string url)
+        {
+            DebugLog($"Preparing next song {id}", EnableDebugLogs.Value);
+
+            string newPath = Path.Combine(DownloadsPath, $"{id}.mp3");
+
+            if (File.Exists(newPath))
+            {
+                DebugLog($"Already exists, reusing.", EnableDebugLogs.Value);
+                return;
+            }
+
+            if (InfoCache.DurationCache.TryGetValue(id, out float duration))
+            {
+                if (duration > MaxSongDuration.Value)
+                {
+                    DebugLog($"Song too long. Preventing download.", EnableDebugLogs.Value);
+                    return;
+                }
+            }
+            else
+            {
+                var videoDataResult = await YoutubeBoombox.YoutubeDL.RunVideoDataFetch(url);
+
+                if (videoDataResult.Success && videoDataResult.Data.Duration != null)
+                {
+                    InfoCache.DurationCache.Add(id, (float)videoDataResult.Data.Duration);
+                    // Skip preparing videos that are too long
+                    if (videoDataResult.Data.Duration > MaxSongDuration.Value)
+                    {
+                        DebugLog($"Song too long. Preventing download.", EnableDebugLogs.Value);
+                        return;
+                    }
+                }
+                else
+                {
+                    DebugLog($"Couldn't get song length. Skipping.", EnableDebugLogs.Value);
+                    return;
+                }
+            }
+
+            var res = await YoutubeBoombox.YoutubeDL.RunAudioDownload(url, YoutubeDLSharp.Options.AudioConversionFormat.Mp3);
+
+            if (res.Success)
+            {
+                if (!res.Data.EndsWith(".mp3"))
+                {
+                    File.Move(res.Data, newPath);
+                }
+
+                DebugLog($"Prepared {id} successfully", EnableDebugLogs.Value);
+            }
+            else
+            {
+                DebugLog($"Downloading {id} failed!", EnableDebugLogs.Value);
+            }
+        }
+
+        public async void DownloadCurrentPlaylist()
+        {
+            DebugLog($"Downloading playlist from {CurrentUrl} ({CurrentId})", EnableDebugLogs.Value);
+
+            PlaylistCurrentIndex = 0;
+            if (!InfoCache.PlaylistCache.TryGetValue(CurrentId, out List<string> videoIds))
+            {
+                DebugLog($"Playlist not found in cache, downloading all ids.", EnableDebugLogs.Value);
+
+                var playlistResult = await YoutubeBoombox.YoutubeDL.RunVideoPlaylistDownload(CurrentUrl, 1, null, null, "bestvideo+bestaudio/best",
+                    YoutubeDLSharp.Options.VideoRecodeFormat.None, default, null, new InfoCache(CurrentId),
+                    new YoutubeDLSharp.Options.OptionSet()
+                    {
+                        FlatPlaylist = true,
+                        DumpJson = true
+                    });
+
+                if (!playlistResult.Success)
+                {
+                    DebugLog($"Failed to download playlist ids. Unable to proceed.", EnableDebugLogs.Value);
+                    IAmReadyServerRpc();
+
+                    return;
+                }
+                else
+                {
+                    videoIds = InfoCache.PlaylistCache[CurrentId];
+                }
+            }
+
+            if (videoIds.Count == 0)
+            {
+                DebugLog($"Playlist video ids empty...", EnableDebugLogs.Value);
+                IAmReadyServerRpc();
+
+                return;
+            }
+
+            string id = videoIds[0];
+            string url = $"https://youtube.com/watch?v={id}";
+
+            DebugLog($"First playlist song found: {url} ({id})... Downloading.", EnableDebugLogs.Value);
+
+            DownloadSong(id, url);
+        }
+
+        public void ProcessRequest(string id, bool isPlaylist)
+        {
+            string url = !isPlaylist ? $"https://youtube.com/watch?v={id}" : $"https://youtube.com/playlist?list={id}";
+
+            CurrentUrl = url;
+            IsPlaylist = isPlaylist;
+            CurrentId = id;
+
+            DebugLog($"Processing request for {id} isPlaylist?: {isPlaylist}", EnableDebugLogs.Value);
+
+            if (!IsPlaylist)
+            {
+                DownloadCurrentVideo();
+            }
+            else
+            {
+                DownloadCurrentPlaylist();
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(StartOfRound), nameof(StartOfRound.OnClientDisconnect))]
+    internal static class Left
+    {
+        private static void Prefix(StartOfRound __instance, ulong clientId)
+        {
+            if (!__instance.ClientPlayerList.ContainsKey(clientId)) return;
+
+            foreach (BoomboxController controller in UnityEngine.Object.FindObjectsOfType<BoomboxController>())
+            {
+                controller.ClientDisconnected(clientId);
+            }
+        }
+    }
+}

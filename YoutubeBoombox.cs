@@ -10,7 +10,6 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
-using LC_API.ServerAPI;
 using GameNetcodeStuff;
 using Unity.Netcode;
 using System.Reflection.Emit;
@@ -65,7 +64,7 @@ namespace YoutubeBoombox
         }
     }
 
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.3.1")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.4.0")]
     [BepInDependency("LC_API")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
@@ -87,6 +86,8 @@ namespace YoutubeBoombox
         internal static ConfigEntry<float> MaxSongDuration { get; private set; }
 
         internal static ConfigEntry<bool> EnableDebugLogs { get; private set; }
+
+        internal static ConfigEntry<Key> CustomBoomboxButton { get; private set; }
         #endregion
 
         internal static List<string> PathsThisSession { get; private set; } = new List<string>();
@@ -118,6 +119,8 @@ namespace YoutubeBoombox
             MaxSongDuration = Config.Bind("General", "Max Song Duration", 600f, "Maximum song duration in seconds. Any video longer than this will not be downloaded.");
 
             EnableDebugLogs = Config.Bind("Debugging", "Enable Debug Logs", false, "Whether or not to enable debug logs.");
+
+            CustomBoomboxButton = Config.Bind("Keybinds", "Open Menu Key", Key.B, "The button you need to press to open the youtube boombox gui.");
 
             string oldDirectoryPath = Path.Combine(Directory.GetCurrentDirectory(), "Youtube-Boombox");
 
@@ -242,7 +245,7 @@ namespace YoutubeBoombox
 
                 string[] split = url.Split('/');
 
-                id = split[split.Length - 1];
+                id = split[split.Length - 1].Split('?')[0];
             } 
             else if (url.Contains("?list="))
             {
@@ -258,20 +261,20 @@ namespace YoutubeBoombox
             return (id, type);
         }
 
-        public static void PlaySong(string url)
-        {
-            DebugLog($"Trying to play {url}", EnableDebugLogs.Value);
-            if (BoomboxPatch.CurrentBoombox == null) return;
+        //public static void PlaySong(string url)
+        //{
+        //    DebugLog($"Trying to play {url}", EnableDebugLogs.Value);
+        //    if (BoomboxPatch.CurrentBoombox == null) return;
 
-            DebugLog("Boombox found", EnableDebugLogs.Value);
+        //    DebugLog("Boombox found", EnableDebugLogs.Value);
 
-            (string id, string type) = GetIdAndTypeFromUrl(url);
+        //    (string id, string type) = GetIdAndTypeFromUrl(url);
 
-            if (BoomboxPatch.CurrentBoombox.TryGetComponent(out BoomboxNetworking networking))
-            {
-                networking.Download(id, type == "playlist");
-            }
-        }
+        //    if (BoomboxPatch.CurrentBoombox.TryGetComponent(out BoomboxController controller))
+        //    {
+        //        controller.Download(id, type == "playlist");
+        //    }
+        //}
 
         [HarmonyPatch(typeof(GameNetworkManager), nameof(GameNetworkManager.Start))]
         class GameNetworkManagerPatch
@@ -282,7 +285,7 @@ namespace YoutubeBoombox
                 {
                     if (prefab.Prefab.GetComponent<BoomboxItem>() != null)
                     {
-                        prefab.Prefab.AddComponent<BoomboxNetworking>();
+                        prefab.Prefab.AddComponent<BoomboxController>();
 
                         break;
                     }
@@ -290,29 +293,29 @@ namespace YoutubeBoombox
             }
         }
 
-        [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.DiscardItemOnClient))]
-        class DropItemPatch
-        {
-            public static void Prefix(GrabbableObject __instance)
-            {
-                if (!__instance.IsOwner)
-                {
-                    return;
-                }
+        //[HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.DiscardItemOnClient))]
+        //class DropItemPatch
+        //{
+        //    public static void Prefix(GrabbableObject __instance)
+        //    {
+        //        if (!__instance.IsOwner)
+        //        {
+        //            return;
+        //        }
 
-                if (BoomboxPatch.ShowingGUI)
-                {
-                    BoomboxPatch.ShowingGUI = false;
-                }
-            }
-        }
+        //        if (BoomboxPatch.ShowingGUI)
+        //        {
+        //            BoomboxPatch.ShowingGUI = false;
+        //        }
+        //    }
+        //}
 
         [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.UseItemOnClient))]
         class PreventRpc
         {
-            public static bool IsBoombox(GrabbableObject obj)
+            public static bool IsBoomboxAndGUIShowing(GrabbableObject obj)
             {
-                return obj is BoomboxItem;
+                return obj is BoomboxItem && obj.gameObject.TryGetComponent(out BoomboxController controller) && controller.IsGUIShowing();
             }
 
             private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
@@ -329,7 +332,7 @@ namespace YoutubeBoombox
                 newInstructions.InsertRange(index, new CodeInstruction[]
                 {
                     new CodeInstruction(OpCodes.Ldarg_0),
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(PreventRpc), nameof(PreventRpc.IsBoombox))),
+                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(PreventRpc), nameof(PreventRpc.IsBoomboxAndGUIShowing))),
                     new CodeInstruction(OpCodes.Brtrue_S, skipLabel)
                 });
 
@@ -337,16 +340,16 @@ namespace YoutubeBoombox
             }
         }
 
-        [HarmonyPatch(typeof(BoomboxItem), nameof(BoomboxItem.PocketItem))]
-        public class BoomboxPocketPatch
-        {
-            internal static bool Debounce = false;
+        //[HarmonyPatch(typeof(BoomboxItem), nameof(BoomboxItem.PocketItem))]
+        //public class BoomboxPocketPatch
+        //{
+        //    internal static bool Debounce = false;
 
-            public static void Prefix()
-            {
-                Debounce = true;
-            }
-        }
+        //    public static void Prefix()
+        //    {
+        //        Debounce = true;
+        //    }
+        //}
 
         [HarmonyPatch(typeof(BoomboxItem), nameof(BoomboxItem.StartMusic))]
         public class BoomboxPatch
@@ -355,60 +358,12 @@ namespace YoutubeBoombox
             internal static YoutubeBoomboxGUI ShownGUI { get; set; }
             internal static BoomboxItem CurrentBoombox { get; set; }
 
-            public static bool Prefix(BoomboxItem __instance, bool startMusic, bool pitchDown)
+            public static bool Prefix(BoomboxItem __instance)
             {
-
-                if (BoomboxPocketPatch.Debounce)
-                {
-                    BoomboxPocketPatch.Debounce = false;
-
-                    DebugLog("Stopping boombox", EnableDebugLogs.Value);
-
-                    if (__instance.TryGetComponent(out BoomboxNetworking networking))
-                    {
-                        networking.StopMusicServerRpc(pitchDown);
-                    }
-
-                    CurrentBoombox = null;
-
+                if (__instance.TryGetComponent(out BoomboxController controller) && controller.IsGUIShowing())
                     return false;
-                }
 
-                if (!__instance.isPlayingMusic && !pitchDown)
-                {
-                    if (ShowingGUI)
-                    {
-                        DebugLog("Prevent dual open", EnableDebugLogs.Value);
-                        return false;
-                    }
-
-                    if (__instance.TryGetComponent(out BoomboxNetworking networking))
-                        networking.ResetReadyClients();
-
-                    DebugLog("Opening boombox gui", EnableDebugLogs.Value);
-
-                    CurrentBoombox = __instance;
-
-                    GameObject guiObj = new GameObject("YoutubeBoomboxInput");
-                    guiObj.hideFlags = HideFlags.HideAndDontSave;
-                    ShownGUI = guiObj.AddComponent<YoutubeBoomboxGUI>();
-
-                    ShowingGUI = true;
-                }
-                else
-                {
-                    Networking.Broadcast($"{__instance.NetworkObjectId}|{pitchDown}", NetworkingSignatures.BOOMBOX_OFF_SIG);
-                    DebugLog("Stopping boombox", EnableDebugLogs.Value);
-
-                    if (__instance.TryGetComponent(out BoomboxNetworking networking))
-                    {
-                        networking.StopMusicServerRpc(pitchDown);
-                    }
-
-                    CurrentBoombox = null;
-                }
-
-                return false;
+                return true;
             }
         }
     }
