@@ -64,7 +64,7 @@ namespace YoutubeBoombox
         }
     }
 
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.4.0")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.4.1")]
     [BepInDependency("LC_API")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
