@@ -49,7 +49,9 @@ namespace YoutubeBoombox
 
         public void Update()
         {
-            if (Keyboard.current[CustomBoomboxButton.Value].wasPressedThisFrame && !IsGUIShowing())
+            if (StartOfRound.Instance != null 
+                && StartOfRound.Instance.localPlayerController.currentlyHeldObjectServer == Boombox 
+                && Keyboard.current[CustomBoomboxButton.Value].wasPressedThisFrame && !IsGUIShowing())
             {
                 DebugLog($"Boombox button pressed!", EnableDebugLogs.Value);
 

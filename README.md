@@ -6,7 +6,7 @@ I am sorry about the compression.
 
 How to use:
 1. Obtain boombox
-2. Left click while holding boombox
+2. Use your configured hotkey to open the boombox menu (B by default)
 3. Paste URL
 4. Click play
 5. Wait a few seconds for everyone to download
