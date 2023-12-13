@@ -1,5 +1,8 @@
 This changelog only has changes from 1.2.0 onward.
 
+# Version 1.4.1
+- [Fix] Fixed an issue where pressing your keybind will always open the boombox gui, even if not holding a boombox
+
 # Version 1.4.0
 - [Addition] Added a configurable keybind to open the menu instead of left click. Defaults to "B"
   - While holding a boombox, you will see a GUI in the bottom right that says which button to press
