@@ -24,6 +24,9 @@ using YoutubeDLSharp.Metadata;
 using System.Security.Policy;
 using Newtonsoft.Json;
 using System.Reflection;
+using System.Collections.Specialized;
+using YoutubeBoombox.Providers;
+using System.Diagnostics;
 
 namespace YoutubeBoombox
 {
@@ -64,7 +67,7 @@ namespace YoutubeBoombox
         }
     }
 
-    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.4.1")]
+    [BepInPlugin("steven4547466.YoutubeBoombox", "Youtube Boombox", "1.5.0")]
     [BepInDependency("LC_API")]
     public class YoutubeBoombox : BaseUnityPlugin
     {
@@ -91,6 +94,8 @@ namespace YoutubeBoombox
         #endregion
 
         internal static List<string> PathsThisSession { get; private set; } = new List<string>();
+
+        internal static List<Provider> Providers { get; } = new List<Provider>();
 
         public static void LogInfo(object data)
         {
@@ -159,7 +164,7 @@ namespace YoutubeBoombox
 
             SetupNetworking();
 
-            CommandHandler.CommandHandler.RegisterCommand("bbv", new List<string>() { "boomboxvolume" }, (string[] args) =>
+            LC_API.ClientAPI.CommandHandler.RegisterCommand("bbv", new List<string>() { "boomboxvolume" }, (string[] args) =>
             {
                 if (args.Length > 0 && float.TryParse(args[0], out float volume))
                 {
@@ -191,26 +196,36 @@ namespace YoutubeBoombox
                 }
             });
 
-            //CommandHandler.CommandHandler.RegisterCommand("spawnbox", (string[] args) =>
-            //{
-            //    NetworkManager manager = FindObjectOfType<NetworkManager>();
-            //    if (manager != null)
-            //    {
-            //        foreach (NetworkPrefab prefab in manager.NetworkConfig.Prefabs.Prefabs)
-            //        {
-            //            if (prefab.Prefab.TryGetComponent(out BoomboxItem boombox))
-            //            {
-            //                BoomboxItem spawnedBox = Instantiate(boombox, StartOfRound.Instance.localPlayerController.transform.position, default);
-            //                spawnedBox.insertedBattery.charge = 0.2f;
-            //                spawnedBox.GetComponent<NetworkObject>().Spawn();
+            LC_API.ClientAPI.CommandHandler.RegisterCommand("spawnbox", (string[] args) =>
+            {
+                NetworkManager manager = FindObjectOfType<NetworkManager>();
+                if (manager != null)
+                {
+                    foreach (NetworkPrefab prefab in manager.NetworkConfig.Prefabs.Prefabs)
+                    {
+                        if (prefab.Prefab.TryGetComponent(out BoomboxItem boombox))
+                        {
+                            BoomboxItem spawnedBox = Instantiate(boombox, StartOfRound.Instance.localPlayerController.transform.position, default);
+                            spawnedBox.insertedBattery.charge = 0.2f;
+                            spawnedBox.GetComponent<NetworkObject>().Spawn();
 
-            //                spawnedBox.SyncBatteryServerRpc(20);
+                            spawnedBox.SyncBatteryServerRpc(20);
 
-            //                break;
-            //            }
-            //        }
-            //    }
-            //});
+                            break;
+                        }
+                    }
+                }
+            });
+
+            var method = new StackTrace().GetFrame(0).GetMethod();
+            var assembly = method.ReflectedType.Assembly;
+            foreach (Type t in AccessTools.GetTypesFromAssembly(assembly))
+            {
+                if (t.IsSubclassOf(typeof(Provider)))
+                {
+                    Providers.Add(Activator.CreateInstance(t) as Provider);
+                }
+            }
         }
 
         private void SetupNetworking()
@@ -230,52 +245,6 @@ namespace YoutubeBoombox
             }
         }
 
-        public static (string, string) GetIdAndTypeFromUrl(string url)
-        {
-            string id;
-            string type = "video";
-
-            if (url.Contains("?v="))
-            {
-                id = url.Split(new[] { "?v=" }, StringSplitOptions.None)[1].Split('&')[0];
-            }
-            else if (url.Contains("youtu.be"))
-            {
-                if (url.EndsWith("/")) url = url.Substring(0, url.Length - 1);
-
-                string[] split = url.Split('/');
-
-                id = split[split.Length - 1].Split('?')[0];
-            } 
-            else if (url.Contains("?list="))
-            {
-                id = url.Split(new[] { "?list=" }, StringSplitOptions.None)[1].Split('&')[0];
-                type = "playlist";
-            }
-            else
-            {
-                Singleton.Logger.LogError("Couldn't resolve URL.");
-                return (null, null);
-            }
-
-            return (id, type);
-        }
-
-        //public static void PlaySong(string url)
-        //{
-        //    DebugLog($"Trying to play {url}", EnableDebugLogs.Value);
-        //    if (BoomboxPatch.CurrentBoombox == null) return;
-
-        //    DebugLog("Boombox found", EnableDebugLogs.Value);
-
-        //    (string id, string type) = GetIdAndTypeFromUrl(url);
-
-        //    if (BoomboxPatch.CurrentBoombox.TryGetComponent(out BoomboxController controller))
-        //    {
-        //        controller.Download(id, type == "playlist");
-        //    }
-        //}
-
         [HarmonyPatch(typeof(GameNetworkManager), nameof(GameNetworkManager.Start))]
         class GameNetworkManagerPatch
         {
@@ -292,23 +261,6 @@ namespace YoutubeBoombox
                 }
             }
         }
-
-        //[HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.DiscardItemOnClient))]
-        //class DropItemPatch
-        //{
-        //    public static void Prefix(GrabbableObject __instance)
-        //    {
-        //        if (!__instance.IsOwner)
-        //        {
-        //            return;
-        //        }
-
-        //        if (BoomboxPatch.ShowingGUI)
-        //        {
-        //            BoomboxPatch.ShowingGUI = false;
-        //        }
-        //    }
-        //}
 
         [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.UseItemOnClient))]
         class PreventRpc
@@ -339,17 +291,6 @@ namespace YoutubeBoombox
                 for (int z = 0; z < newInstructions.Count; z++) yield return newInstructions[z];
             }
         }
-
-        //[HarmonyPatch(typeof(BoomboxItem), nameof(BoomboxItem.PocketItem))]
-        //public class BoomboxPocketPatch
-        //{
-        //    internal static bool Debounce = false;
-
-        //    public static void Prefix()
-        //    {
-        //        Debounce = true;
-        //    }
-        //}
 
         [HarmonyPatch(typeof(BoomboxItem), nameof(BoomboxItem.StartMusic))]
         public class BoomboxPatch

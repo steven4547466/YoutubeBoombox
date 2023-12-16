@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using YoutubeBoombox.Providers;
 using YoutubeDLSharp;
 using static YoutubeBoombox.YoutubeBoombox;
 
@@ -23,6 +24,8 @@ namespace YoutubeBoombox
         private BoomboxItem Boombox { get; set; }
 
         private YoutubeBoomboxGUI GUI { get; set; }
+
+        private ParsedUri CurrentUri { get; set; }
 
         private string CurrentId { get; set; }
 
@@ -110,23 +113,23 @@ namespace YoutubeBoombox
         }
 
         [ServerRpc(RequireOwnership = false)]
-        public void DownloadServerRpc(string id, bool isPlaylist)
+        public void DownloadServerRpc(string originalUrl, string id, string downloadUrl, UriType uriType)
         {
             DebugLog($"Download server rpc received, sending to all", EnableDebugLogs.Value);
-            DownloadClientRpc(id, isPlaylist);
+            DownloadClientRpc(originalUrl, id, downloadUrl, uriType);
         }
 
         [ClientRpc]
-        public void DownloadClientRpc(string id, bool isPlaylist)
+        public void DownloadClientRpc(string originalUrl, string id, string downloadUrl, UriType uriType)
         {
             DebugLog($"Download request received on client, processing.", EnableDebugLogs.Value);
-            ProcessRequest(id, isPlaylist);
+            ProcessRequest(new ParsedUri(new Uri(originalUrl), id, downloadUrl, uriType));
         }
 
-        public void Download(string id, bool isPlaylist)
+        public void Download(ParsedUri parsedUri)
         {
             DebugLog($"Download called, calling everywhere", EnableDebugLogs.Value);
-            DownloadServerRpc(id, isPlaylist);
+            DownloadServerRpc(parsedUri.Uri.OriginalString, parsedUri.Id, parsedUri.DownloadUrl, parsedUri.UriType);
         }
 
         [ServerRpc(RequireOwnership = false)]
@@ -215,9 +218,11 @@ namespace YoutubeBoombox
 
             DebugLog("Boombox found", EnableDebugLogs.Value);
 
-            (string id, string type) = GetIdAndTypeFromUrl(url);
+            Uri uri = new Uri(url);
 
-            Download(id, type == "playlist");
+            ParsedUri parsedUri = YoutubeBoombox.Providers.First(p => p.Hosts.Contains(uri.Host)).ParseUri(uri);
+
+            Download(parsedUri);
         }
 
         // Doesn't really destroy the GUI, the GUI destroys itself, just gotta set it to null.
@@ -386,10 +391,7 @@ namespace YoutubeBoombox
 
             if (res.Success)
             {
-                if (!res.Data.EndsWith(".mp3"))
-                {
-                    File.Move(res.Data, newPath);
-                }
+                File.Move(res.Data, newPath);
 
                 DebugLog($"Song {id} downloaded successfully.", EnableDebugLogs.Value);
                 Boombox.StartCoroutine(LoadSongCoroutine(newPath));
@@ -471,10 +473,7 @@ namespace YoutubeBoombox
 
             if (res.Success)
             {
-                if (!res.Data.EndsWith(".mp3"))
-                {
-                    File.Move(res.Data, newPath);
-                }
+                File.Move(res.Data, newPath);
 
                 DebugLog($"Prepared {id} successfully", EnableDebugLogs.Value);
             }
@@ -530,15 +529,16 @@ namespace YoutubeBoombox
             DownloadSong(id, url);
         }
 
-        public void ProcessRequest(string id, bool isPlaylist)
+        public void ProcessRequest(ParsedUri parsedUri)
         {
-            string url = !isPlaylist ? $"https://youtube.com/watch?v={id}" : $"https://youtube.com/playlist?list={id}";
+            string url = parsedUri.DownloadUrl;
 
+            CurrentUri = parsedUri;
             CurrentUrl = url;
-            IsPlaylist = isPlaylist;
-            CurrentId = id;
+            IsPlaylist = parsedUri.UriType == UriType.Playlist;
+            CurrentId = parsedUri.Id;
 
-            DebugLog($"Processing request for {id} isPlaylist?: {isPlaylist}", EnableDebugLogs.Value);
+            DebugLog($"Processing request for {CurrentId} isPlaylist?: {IsPlaylist}", EnableDebugLogs.Value);
 
             if (!IsPlaylist)
             {

@@ -27,3 +27,4 @@ TODO:
 - Better UI.
 - Allow the mod to be used in lobbies where not everyone has the mod by only waiting on the number of people with the mod.
   - Currently if you use the mod in a lobby and not everyone has it, it will wait forever.
+- Playlist shuffle
