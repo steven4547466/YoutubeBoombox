@@ -1,5 +1,9 @@
 This changelog only has changes from 1.2.0 onward.
 
+# Version 1.5.0
+- [Technical] Rewrote url parsing. Adding new providers in the future will be easier
+- [Technical] Removed dependency to command handler now that it's built into LC API
+
 # Version 1.4.1
 - [Fix] Fixed an issue where pressing your keybind will always open the boombox gui, even if not holding a boombox
 
